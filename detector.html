@@ -44,6 +44,7 @@ button:focus-visible{outline:2px solid var(--check);outline-offset:2px}
 button:disabled{opacity:.35;cursor:default}
 #next{background:var(--btn);color:var(--btn-fg);border-color:var(--btn);font-weight:500}
 #next.wait{background:transparent;color:var(--check);border-color:var(--check)}
+#back.onward{background:#1f7fd2;color:#fff;border-color:#1f7fd2;font-weight:600}   /* first step: back to the guide before, in its colour */
 #next.onward{background:#f2c230;color:#1c1d1f;border-color:#f2c230;font-weight:600}   /* last step: on to the next guide, in its colour */
 #back{min-width:84px}
 .lbl{position:absolute;transform:translate(-50%,-50%);pointer-events:none;font-family:var(--mono);font-size:var(--t-s);letter-spacing:.05em;color:var(--fg);background:var(--band);padding:2px 6px;border-radius:3px;border:1px solid var(--line);white-space:nowrap}
@@ -1842,7 +1843,8 @@ async function goto(k, animateLast){
   busy=false; setButtons();
 }
 const NEXT_GUIDE=null;   /* where the last step's Next goes */
-function setButtons(){ bBack.disabled=cur===0; bRestart.disabled=reversing; bSkip.disabled=!animating; const left=checkItems? checkItems.length-checkIdx : 0; const wait_=left>0; const onward=!!NEXT_GUIDE && cur===STEPS.length-1;
+const PREV_GUIDE={href:'frame.html', label:'Frame guide'};                                             /* where the first step's Back goes */
+function setButtons(){ const back0=!!PREV_GUIDE && cur===0; bBack.disabled=cur===0 && !back0; bBack.classList.toggle('onward',back0); { const t=bBack.querySelector('.txt'), lab=back0?PREV_GUIDE.label:'Back'; if (t && t.textContent!==lab) t.textContent=lab; } bRestart.disabled=reversing; bSkip.disabled=!animating; const left=checkItems? checkItems.length-checkIdx : 0; const wait_=left>0; const onward=!!NEXT_GUIDE && cur===STEPS.length-1;
   bNext.disabled=onward? reversing : busy||cur===STEPS.length-1||wait_; bNext.classList.toggle('wait',wait_); bNext.classList.toggle('onward',onward); const lab= onward? NEXT_GUIDE.label : wait_? `${left} to check` : (STEPS[cur].check?'Checked':'Next'); if (bNext.dataset.lab!==lab){ bNext.dataset.lab=lab; bNext.innerHTML= wait_? `<span>${lab}</span>` : `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg><span class="txt">${lab}</span>`; } }
 window.__passCheck=()=>{ if(checkItems){ checkIdx=checkItems.length; hideCallout(); setButtons(); } };
 /* checks: one question at a time, a dashed pointer to the exact spot */
@@ -1938,14 +1940,14 @@ window.__inspect=()=>{ // test hook: world boxes of the solid parts, their homes
   return out;
 };
 bNext.onclick=()=>{ if (NEXT_GUIDE && cur===STEPS.length-1){ if (!reversing) location.href=NEXT_GUIDE.href; return; } if(!busy&&cur<STEPS.length-1) goto(cur+1,true); };
-bBack.onclick=()=>goBack();                                     // always available: plays the step backwards
+bBack.onclick=()=>{ if (PREV_GUIDE && cur===0){ location.href=PREV_GUIDE.href; return; } goBack(); };                                     // always available: plays the step backwards
 bRestart.onclick=()=>{ if(!reversing) goto(cur,true); };
 bSkip.onclick=()=>{ if(animating && !reversing) goto(cur,false); };
 addEventListener('keydown',e=>{ if (e.metaKey||e.ctrlKey||e.altKey) return;
   if (e.key===' ' || e.code==='Space'){ e.preventDefault(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur();   // space: skip a running animation, else confirm the open check, else next
     if (animating && !reversing) bSkip.click(); else if (!callout.hidden && !cRow.hidden) document.getElementById('cYes').click(); else bNext.click(); return; }
-  if (e.key==='Backspace'){ e.preventDefault(); bBack.click(); return; }                                                                              // backspace: back
-  if(e.key==='ArrowRight') bNext.click(); else if(e.key==='ArrowLeft') bBack.click(); else if(e.key.toLowerCase()==='r') bRestart.click(); else if(e.key.toLowerCase()==='s') bSkip.click(); });
+  if (e.key==='Backspace'){ e.preventDefault(); if (!(PREV_GUIDE && cur===0)) bBack.click(); return; }                                                                              // backspace: back
+  if(e.key==='ArrowRight') bNext.click(); else if(e.key==='ArrowLeft'){ if (!(PREV_GUIDE && cur===0)) bBack.click(); } else if(e.key.toLowerCase()==='r') bRestart.click(); else if(e.key.toLowerCase()==='s') bSkip.click(); });
 window.__busy=()=>busy||reversing;
 
 // tap-to-count
