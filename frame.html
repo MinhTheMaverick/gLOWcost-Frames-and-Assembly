@@ -14,10 +14,10 @@
   --t-s:12px; --t-m:14px; --t-l:17px; color-scheme:dark;   /* always dark, whatever the system setting: it stands out against the table */
   --font:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif; --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
 }
-html,body{height:100%}
+html,body{height:100%;overscroll-behavior:none}
 body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);overflow:hidden}
 #app{position:fixed;inset:0}
-canvas{display:block;width:100%;height:100%}
+canvas{display:block;width:100%;height:100%;touch-action:none}
 #stepBox{position:absolute;left:max(16px,env(safe-area-inset-left,0px));top:max(16px,env(safe-area-inset-top,0px));width:clamp(260px,30vw,400px);box-sizing:border-box;
   background:var(--band);border:1px solid var(--line);border-radius:6px;padding:12px 14px 12px;display:grid;gap:10px;backdrop-filter:blur(4px)}
 #counter{font-family:var(--mono);font-size:var(--t-s);letter-spacing:.06em;color:var(--muted);white-space:nowrap;display:flex;justify-content:space-between}
@@ -39,7 +39,7 @@ canvas{display:block;width:100%;height:100%}
 #bottom button{border-color:transparent} #bottom button:not(:disabled):hover{border-color:var(--line)}
 #stepBox .nav{display:flex;gap:8px}
 #stepBox .nav #next{flex:1}
-button{font:inherit;font-family:var(--mono);font-size:var(--t-s);letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line);background:transparent;color:var(--fg);padding:10px 16px;border-radius:4px;cursor:pointer;white-space:nowrap}
+button{touch-action:manipulation;font:inherit;font-family:var(--mono);font-size:var(--t-s);letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line);background:transparent;color:var(--fg);padding:10px 16px;border-radius:4px;cursor:pointer;white-space:nowrap}
 button:focus-visible{outline:2px solid var(--check);outline-offset:2px}
 button:disabled{opacity:.35;cursor:default}
 #next{background:var(--btn);color:var(--btn-fg);border-color:var(--btn);font-weight:500}
@@ -85,14 +85,41 @@ button:disabled{opacity:.35;cursor:default}
 #magBtn.on{background:var(--btn);border-color:var(--btn)}
 #home{position:absolute;top:max(18px,env(safe-area-inset-top,0px));right:max(20px,env(safe-area-inset-right,0px));z-index:5;color:#fff;opacity:.9;font-size:14px;font-weight:500;text-decoration:none;text-shadow:0 1px 2px rgba(0,0,0,.25)}
 #home:hover{opacity:1;text-decoration:underline;text-underline-offset:3px}
-@media (max-width:760px){ #bottom .long{display:none} #why{display:none} #stepBox{width:calc(100vw - 32px - 56px)} }
+@media (max-width:760px){ #bottom .long{display:none} #why{display:none} }
+.ico{display:none}
+/* phone, upright: the instructions become a sheet along the bottom, within thumb reach, with every control in it.
+   Cam 2 and the right/wrong pictures sit at the top; the build is framed in between. Nothing scrolls. */
+body.phone #bottom{display:none}
+body.phone #stepBox{left:0;right:0;top:auto;bottom:0;width:auto;border-radius:14px 14px 0 0;border-width:1px 0 0;padding:10px 14px max(12px,env(safe-area-inset-bottom,0px));gap:8px}
+body.phone #sentence{font-size:16px;line-height:1.32}
+body.phone #note{font-size:13px;line-height:1.38}
+body.phone #partsRow{padding-top:8px;gap:4px 14px}
+body.phone #partsRow img{width:40px;height:40px}
+body.phone #partsRow .n{font-size:15px}
+body.phone #stepBox .nav{align-items:center;gap:6px}
+body.phone #stepBox .nav .mid{display:flex;gap:6px}
+body.phone #stepBox .nav .mid button{width:40px;height:40px;padding:0;display:grid;place-items:center;border-color:var(--line)}
+body.phone #stepBox .txt{display:none}
+body.phone #stepBox .ico{display:block;width:18px;height:18px}
+body.phone #back .ico,body.phone #next .ico{width:22px;height:22px}
+body.phone #next{display:grid;place-items:center}
+body.phone #back{min-width:0;width:44px;padding:0;height:40px;display:grid;place-items:center}
+body.phone #next{height:40px}
+body.phone #keyHint,body.phone #magHint{display:none!important}
+body.phone #magBtn.hint{border-color:#f4d23c;box-shadow:0 0 0 2px #f4d23c;animation:magPulse 1.4s ease-in-out infinite}
+@keyframes magPulse{0%,100%{box-shadow:0 0 0 2px #f4d23c}50%{box-shadow:0 0 0 6px rgba(244,210,60,.25)}}
+body.phone #home{top:max(14px,env(safe-area-inset-top,0px));right:max(16px,env(safe-area-inset-right,0px))}
+/* phone on its side, or any short window: the same layout as a desktop, tighter */
+@media (max-height:500px){ #stepBox{padding:8px 10px;gap:6px;top:max(10px,env(safe-area-inset-top,0px))} #sentence{font-size:15px;line-height:1.3} #note{font-size:12.5px;line-height:1.35}
+  #partsRow{padding-top:6px} #partsRow img{width:34px;height:34px} #partsRow .n{font-size:14px} button{padding:7px 12px} #back{min-width:64px}
+  #bottom{padding:4px;bottom:max(8px,env(safe-area-inset-bottom,0px))} #magBtn{width:34px;height:34px} #magBtn svg{width:24px;height:24px} #keyHint{bottom:58px} }
 @media (max-width:520px){ #bottom .mid{gap:6px} #bottom button{padding:10px 10px} #magBtn{width:40px;height:40px;padding:0} }
 @media (prefers-reduced-motion: reduce){ :root{--motion:0} }
 </style>
 
 <div id="app">
   <a id="home" href="index.html">Home</a>
-  <div id="stepBox"><div id="counter"><span><b id="n">1</b> / <span id="total">0</span></span><span id="rep"></span></div><p id="sentence"></p><p id="note" hidden></p><div id="partsRow" hidden></div><div class="nav"><button id="back">Back</button><button id="next">Next</button></div></div>
+  <div id="stepBox"><div id="counter"><span><b id="n">1</b> / <span id="total">0</span></span><span id="rep"></span></div><p id="sentence"></p><p id="note" hidden></p><div id="partsRow" hidden></div><div class="nav"><button id="back" aria-label="Back"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg><span class="txt">Back</span></button><button id="next" aria-label="Next">Next</button></div></div>
   <div id="why" hidden></div>
   <svg id="leader" width="100%" height="100%" style="position:absolute;inset:0;pointer-events:none"><line id="leaderLine" x1="0" y1="0" x2="0" y2="0" stroke="#d7262b" stroke-width="1.6" stroke-dasharray="5 4" visibility="hidden"/><circle id="leaderDot" r="4" fill="#d7262b" visibility="hidden"/></svg>
   <div id="callout" hidden><div class="prog" id="cProg"></div><div class="q" id="cQ"></div><div class="row" id="cRow"><button id="cYes">Confirm</button></div></div>
@@ -101,7 +128,7 @@ button:disabled{opacity:.35;cursor:default}
   <div id="keyHint" hidden><kbd>Space</kbd> to continue &nbsp;·&nbsp; <kbd>Backspace</kbd> to go back</div>
   <div id="magHint" hidden><span>or this button</span><svg width="40" height="56" viewBox="0 0 40 56"><path d="M20 2 V44" stroke="#f4d23c" stroke-width="3" fill="none"/><path d="M9 34 L20 50 L31 34" stroke="#f4d23c" stroke-width="3" fill="none" stroke-linejoin="round"/></svg></div>
   <div id="bottom">
-    <div class="mid"><button id="restart">Restart<span class="long"> animation</span></button><button id="skip">Skip<span class="long"> animation</span></button>
+    <div class="mid"><button id="restart" aria-label="Restart animation"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4v4.6h4.6"/></svg><span class="txt">Restart<span class="long"> animation</span></span></button><button id="skip" aria-label="Skip animation"><svg class="ico" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6l7.5 6L3 18z"/><path d="M11 6l7.5 6L11 18z"/><rect x="18.6" y="6" width="2.2" height="12" rx=".6"/></svg><span class="txt">Skip<span class="long"> animation</span></span></button>
       <button id="magBtn" title="Magnifier" aria-label="Magnifier"><svg viewBox="0 0 32 32"><circle cx="13" cy="13" r="8.5" fill="rgba(207,230,245,.25)" stroke="#b9bec4" stroke-width="3"/><path d="M19.2 19.2 L21.4 21.4" stroke="#b9bec4" stroke-width="2.6"/><path d="M21.6 21.6 L28.4 28.4" stroke="#8a5a3c" stroke-width="4.4" stroke-linecap="round"/></svg></button>
     </div>
   </div>
@@ -240,8 +267,8 @@ const TRAYS={ // centre x, z and outer size; walls 6 mm thick on the edges, 1.85
 const bench = new THREE.Group(); scene.add(bench);
 { const top=mesh(new THREE.BoxGeometry(175,3,118),M.table); top.position.set(0,-1.65,-8); bench.add(top);   // top face 1.5 mm under the tray floors: no z-fighting
   for (const [x,z] of [[-82,-62],[82,-62],[-82,46],[82,46]]){ const leg=mesh(new THREE.BoxGeometry(4,72,4),M.table); leg.position.set(x,-39,z); bench.add(leg); }
-  const seat=mesh(new THREE.BoxGeometry(42,4,40),M.chair); seat.position.set(0,-30,72); bench.add(seat);
-  const back=mesh(new THREE.BoxGeometry(42,42,3),M.chair); back.position.set(0,-9,93); bench.add(back);
+  const seat=mesh(new THREE.BoxGeometry(42,4,40),M.chair); seat.position.set(0,-30,72); bench.add(seat); bench.userData.chairSeat=seat;
+  const back=mesh(new THREE.BoxGeometry(42,42,3),M.chair); back.position.set(0,-9,93); bench.add(back); bench.userData.chairBack=back;
   // trays
   for (const t of Object.values(TRAYS)) bench.add(trayObj(t.w,t.d,t.x,t.z));
 }
@@ -816,8 +843,14 @@ async function pushNuts(p,i){ // by hand, no measuring: the rails set the exact 
 /* ============================== camera ============================== */
 const camState={pos:new THREE.Vector3(0,70,90), tgt:new THREE.Vector3(0,0,0)};
 const DIR={ side:[1,.25,-.3], brk8:[.3,1,.7], topdown:[0.001,1,0.14], alongx:[1,.18,.06], sideposts:[.8,.5,1], railends:[1,.42,.45], chair:[0,.62,1], high:[0,1,.45], low:[0,.28,1], left:[-.9,.55,1], right:[.9,.55,1], lowleft:[-1,.4,1], lowright:[1,.4,1], lowchair:[0,.42,1], far:[0,.75,1] };
+const isPhone=()=>document.body.classList.contains('phone');
+const PHONE_TOP=44;                                              // below the Home link
+let fitCheck=false;                                              // the step asks checks: on a phone the question box needs room at the top
 function cam2Rect(W,H,compare=false){
-  if (compare && W>=700){ const pw=Math.round(Math.min(W*0.22, (H-70-16-12)/2/0.95, 400)), ph=Math.round(pw*0.95); return {x:W-pw-16, y:70, w:pw, h:ph*2+12, pw, ph, stack:true}; }   // right/wrong: stacked in a narrow column, the build keeps the rest
+  if (isPhone()){ const top=PHONE_TOP;
+    if (compare){ const pw=Math.round((W-44)/2), ph=Math.round(Math.min(pw*0.9, H*0.24)); return {x:16, y:H-top-ph, w:pw*2+12, h:ph, pw, ph, stack:false}; }
+    const w=W-32, h=Math.round(Math.min(w*0.5, H*0.24)); return {x:16, y:H-top-h, w, h}; }
+  if (compare && W>=700){ const pw=Math.round(Math.min(W*0.22, (H-70-44-12)/2/0.95, 400)), ph=Math.round(pw*0.95); return {x:W-pw-16, y:70, w:pw, h:ph*2+12, pw, ph, stack:true}; }   // right/wrong: stacked in a narrow column, the build keeps the rest
   if (compare){ const pw=Math.round((W-44)/2), ph=Math.round(pw*1.15); return {x:16, y:70, w:pw*2+12, h:ph, pw, ph, stack:false}; }                                    // phone: side by side under the build
   const w=Math.round(Math.min(560, W*0.4, H*0.5/0.62)), h=Math.round(w*0.62); return {x:W-w-16, y:70, w, h}; }   // bottom-right, above the bar (y from the bottom)
 function fit(ids, dirName='chair', pad=1.25, withCam2=false){
@@ -833,21 +866,24 @@ function fit(ids, dirName='chair', pad=1.25, withCam2=false){
   if (ids.includes('bench')) box.union(new THREE.Box3(new THREE.Vector3(-80,0,-62), new THREE.Vector3(80,20,40)));
   if (!sph) sph=box.getBoundingSphere(new THREE.Sphere());
   else box.setFromCenterAndSize(sph.center, new THREE.Vector3(2,2,2).multiplyScalar(sph.radius));
-  const dir=new THREE.Vector3(...DIR[dirName]).normalize();
+  const dir=new THREE.Vector3(...DIR[dirName]); if (isPhone()) dir.y+=0.45; dir.normalize();     // an upright screen is narrow: look down a little more, so depth fills its height
   const vfov=camera.fov*Math.PI/180; const hfov=2*Math.atan(Math.tan(vfov/2)*camera.aspect);
   let dist=sph.radius*pad/Math.sin(Math.min(vfov,hfov)/2)*0.6;
   // push the camera back until all eight box corners sit inside the view, clear of the text bands
   const tc=camera.clone(); const corners=[]; for (const x of [box.min.x,box.max.x]) for (const y of [box.min.y,box.max.y]) for (const z of [box.min.z,box.max.z]) corners.push(new THREE.Vector3(x,y,z));
   const W=renderer.domElement.clientWidth||innerWidth, H=renderer.domElement.clientHeight||innerHeight;
   const pr=document.getElementById('stepBox').getBoundingClientRect(), bb=document.getElementById('bottom').getBoundingClientRect();
-  const pX=(pr.right+12)/W*2-1, pY=1-(pr.bottom+12)/H*2, yMin=1-(bb.top-14)/H*2;     // the panel's corner and the bar's top, in view coordinates
+  let pX=(pr.right+12)/W*2-1, pY=1-(pr.bottom+12)/H*2, yMin=1-(bb.top-14)/H*2;     // the panel's corner and the bar's top, in view coordinates
   // with Cam 2 on screen the build keeps to the part of the view left of it: the camera slides sideways so the build sits centred there
-  const cr = withCam2 ? cam2Rect(W,H,withCam2==='compare') : null, narrow = cr && cr.w > W*0.6;      // on a phone the insets span the width: keep the build above them instead
-  const xMax = cr && !narrow ? (cr.x-14)/W*2-1 : 0.92, xMid=(xMax-0.92)/2, tanH=Math.tan(hfov/2);
-  const yMin2 = narrow ? Math.max(yMin, 1-(H-cr.y-cr.h-12)/H*2) : yMin;
-  const shiftAt=d=>new THREE.Vector3(1,0,0).applyQuaternion(tc.quaternion).multiplyScalar(-xMid*d*tanH);
+  const cr = withCam2 ? cam2Rect(W,H,withCam2==='compare') : null, phone=isPhone(), narrow = !phone && cr && cr.w > W*0.6;      // narrow window: the insets span the width, keep the build above them
+  let xMax = cr && !narrow && !phone ? (cr.x-14)/W*2-1 : 0.92, yMin2 = narrow ? Math.max(yMin, 1-(H-cr.y-cr.h-12)/H*2) : yMin, yMax=0.92, yMid=0;
+  if (phone){ // between what sits at the top (Home, Cam 2, a check question) and the sheet at the bottom
+    let topPx=PHONE_TOP; if (cr) topPx=H-cr.y+10; if (fitCheck) topPx=Math.max(topPx, PHONE_TOP+128);
+    yMax=1-topPx/H*2; yMin2=1-(pr.top-10)/H*2; yMid=(yMax+yMin2)/2; pX=-2; }
+  const xMid=(xMax-0.92)/2, tanH=Math.tan(hfov/2), tanV=Math.tan(vfov/2);
+  const shiftAt=d=>new THREE.Vector3(1,0,0).applyQuaternion(tc.quaternion).multiplyScalar(-xMid*d*tanH).add(new THREE.Vector3(0,1,0).applyQuaternion(tc.quaternion).multiplyScalar(-yMid*d*tanV));
   const okAt=d=>{ tc.position.copy(sph.center).addScaledVector(dir,d); tc.lookAt(sph.center); tc.position.add(shiftAt(d)); tc.updateMatrixWorld(true);
-    return corners.every(c=>{ const q=c.clone().project(tc); return q.x>=-0.92 && q.x<=xMax && q.y>=yMin2 && q.y<=0.92 && q.z<1 && !(q.x<pX && q.y>pY); }); };
+    return corners.every(c=>{ const q=c.clone().project(tc); return q.x>=-0.92 && q.x<=xMax && q.y>=yMin2 && q.y<=yMax && q.z<1 && !(q.x<pX && q.y>pY); }); };
   for (let n=0;n<80 && !okAt(dist);n++) dist*=1.06;
   if (parts.mag && parts.mag.visible && parts.mag.userData.home==='storage'){ // keep the magnifier on screen too, unless that would push the camera far back
     const mb=new THREE.Box3().setFromObject(parts.mag), c0=corners.length; for (const x of [mb.min.x,mb.max.x]) for (const y of [mb.min.y,mb.max.y]) for (const z of [mb.min.z,mb.max.z]) corners.push(new THREE.Vector3(x,y,z));
@@ -1118,7 +1154,7 @@ async function goBack(){
   cancelStep(); live=null; busy=true; checkItems=null; hideCallout(); clearLabels(); clearMarks(); clearGhosts(); cam2 = STEPS[k-1].cam2 ? Object.assign({}, STEPS[k-1].cam2) : null; setButtons();   // the step being returned to keeps its Cam 2 on screen while it plays back
   const frames = frames0 || await recordStep(k);           // recorded: it ends where the step ends, which is what is on screen
   HOLD=false; setStepUI(k-1);
-  const st=STEPS[k-1]; applyFrame(frames[0]); scene.updateMatrixWorld(true); const target=fit(focusOf(st), st.cam[1], st.cam[2], st.cam2?(st.cam2.compare?'compare':true):false); applyFrame(frames[frames.length-1]);
+  const st=STEPS[k-1]; applyFrame(frames[0]); scene.updateMatrixWorld(true); fitCheck=!!st.check; const target=fit(focusOf(st), st.cam[1], st.cam[2], st.cam2?(st.cam2.compare?'compare':true):false); applyFrame(frames[frames.length-1]);
   const T=frames[frames.length-1].t, D=Math.max(450, Math.min(3000, T/3)); const p0=camState.pos.clone(), t0=camState.tgt.clone(); let idx=frames.length-1;
   await revTween(D, u=>{ const tt=T*(1-u); while (idx>0 && frames[idx].t>tt) idx--; applyFrame(frames[idx]); const e=ease(u); camState.pos.lerpVectors(p0,target.pos,e); camState.tgt.lerpVectors(t0,target.tgt,e); });
   applyFrame(frames[0]); reversing=false;
@@ -1126,7 +1162,8 @@ async function goBack(){
   if (backQueued>0){ backQueued--; goBack(); } }
 function placeMagHint(){ const el=document.getElementById('magHint'), r=magBtn.getBoundingClientRect(); el.style.left=(r.left+r.width/2-20)+'px'; el.style.top=(r.top-el.offsetHeight-4)+'px'; }
 addEventListener('resize',()=>placeMagHint());
-function setStepUI(k){ const st=STEPS[k]; document.getElementById('keyHint').hidden=(k!==0); const mh=document.getElementById('magHint'); mh.hidden=!st.magHint; if (st.magHint) placeMagHint(); elN.textContent=k+1; elRep.textContent=st.rep? st.rep:''; elS.innerHTML=st.s; elNote.innerHTML=st.n||''; elNote.hidden=!st.n; elS.classList.toggle('check',!!st.check); showParts(st.parts); }
+const TOUCH=matchMedia('(pointer:coarse)').matches;
+function setStepUI(k){ const st=STEPS[k]; document.getElementById('keyHint').hidden=(k!==0); const mh=document.getElementById('magHint'); mh.hidden=!st.magHint; if (st.magHint) placeMagHint(); elN.textContent=k+1; elRep.textContent=st.rep? st.rep:''; elS.innerHTML=st.s; elNote.innerHTML=TOUCH? (st.n||'').replace(/\bClick\b/g,'Tap').replace(/\bclick\b/g,'tap') : (st.n||''); document.getElementById('magBtn').classList.toggle('hint',!!st.magHint); elNote.hidden=!st.n; elS.classList.toggle('check',!!st.check); showParts(st.parts); }
 function resetAll(){
   for (const id in parts){ const o=parts[id]; const hs=o.userData.homes; if (id==='mag' && (magOn||magBusy)) continue; if (hs.storage) place(id,'storage'); else if (hs.loaded){ scene.add(o); o.position.set(0,-50,0); o.userData.home='none'; } }
   for (const s of [...SCREWS,...FOOT_SCREWS]){ s.visible=false; if (s.parent!==s.userData.home0) s.userData.home0.add(s); s.position.copy(s.userData.p0); s.quaternion.copy(s.userData.q0); }
@@ -1140,7 +1177,7 @@ async function goto(k, animateLast){
   resetAll(); for (let i=0;i<k;i++) await STEPS[i].run(true); if (my!==epoch) return; const before=snapshot();
   await st.run(true); if (my!==epoch) return; build.updateMatrixWorld(true); const after=snapshot();
   const focusArr=focusOf(st);
-  const camTarget=fit(focusArr, st.cam[1], st.cam[2], st.cam2?(st.cam2.compare?'compare':true):false);
+  fitCheck=!!st.check; const camTarget=fit(focusArr, st.cam[1], st.cam[2], st.cam2?(st.cam2.compare?'compare':true):false);
   cam2 = st.cam2 ? Object.assign({}, st.cam2) : null;
   const changed=changedMarks(before, after); drawChanged(changed, after, before);
   resetAll(); for (let i=0;i<k;i++) await STEPS[i].run(true); if (my!==epoch) return;
@@ -1159,7 +1196,7 @@ async function goto(k, animateLast){
   busy=false; setButtons();
 }
 function setButtons(){ bBack.disabled=cur===0; bRestart.disabled=reversing; bSkip.disabled=!animating; const left=checkItems? checkItems.length-checkIdx : 0; const wait_=left>0;
-  bNext.disabled=busy||cur===STEPS.length-1||wait_; bNext.classList.toggle('wait',wait_); bNext.textContent= wait_? `${left} to check` : (STEPS[cur].check?'Checked':'Next'); }
+  bNext.disabled=busy||cur===STEPS.length-1||wait_; bNext.classList.toggle('wait',wait_); const lab= wait_? `${left} to check` : (STEPS[cur].check?'Checked':'Next'); if (bNext.dataset.lab!==lab){ bNext.dataset.lab=lab; bNext.innerHTML= wait_? `<span>${lab}</span>` : `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg><span class="txt">${lab}</span>`; } }
 window.__passCheck=()=>{ if(checkItems){ checkIdx=checkItems.length; hideCallout(); setButtons(); } };
 /* checks: one question at a time, a dashed pointer to the exact spot */
 const callout=document.getElementById('callout'), cQ=document.getElementById('cQ'), cProg=document.getElementById('cProg'), cRow=document.getElementById('cRow');
@@ -1175,9 +1212,10 @@ const cv=new THREE.Vector3();
 function placeCallout(){ if (callout.hidden || !checkItems || checkIdx>=checkItems.length) return; const it=checkItems[checkIdx];
   parts[it.id].localToWorld(cv.set(...it.at)); cv.project(camera); const W=renderer.domElement.clientWidth, H=renderer.domElement.clientHeight;
   const x=(cv.x+1)/2*W, y=(1-cv.y)/2*H; const bw=callout.offsetWidth, bh=callout.offsetHeight; const top=0;
-  let bx = x+70+bw < W-16 ? x+70 : x-70-bw; let by = Math.max(top+12, Math.min(H-bh-80, y-bh-50));
+  let bx, by, ex, ey;
+  if (isPhone()){ callout.style.width=(W-32)+'px'; bx=16; by=PHONE_TOP; ex=Math.max(bx+24, Math.min(bx+bw-24, x)); ey=by+bh; }
+  else { if (callout.style.width) callout.style.width=''; bx = x+70+bw < W-16 ? x+70 : x-70-bw; by = Math.max(top+12, Math.min(H-bh-80, y-bh-50)); ex = bx>x ? bx : bx+bw; ey = by+bh/2; }
   callout.style.left=bx+'px'; callout.style.top=by+'px';
-  const ex = bx>x ? bx : bx+bw, ey = by+bh/2;
   leaderLine.setAttribute('x1',x); leaderLine.setAttribute('y1',y); leaderLine.setAttribute('x2',ex); leaderLine.setAttribute('y2',ey); leaderLine.setAttribute('visibility','visible');
   leaderDot.setAttribute('cx',x); leaderDot.setAttribute('cy',y); leaderDot.setAttribute('visibility','visible'); }
 window.__goto=(k)=>goto(k,false);
@@ -1354,9 +1392,9 @@ function renderCompare(W,H,{x,y,pw,ph,stack}){ const gap=12;
   renderer.setScissorTest(false); renderer.setViewport(0,0,W,H); }
 function renderCam2(){ if (!cam2){ cam2El.hidden=true; cam2bEl.hidden=true; return; }
   if (cam2.compare){ const W=renderer.domElement.clientWidth, H=renderer.domElement.clientHeight; renderCompare(W,H,cam2Rect(W,H,true)); return; }
-  cam2bEl.hidden=true; cam2El.style.right=''; cam2El.style.bottom=''; if (cam2Lab.dataset.k!=='cam2'){ cam2Lab.dataset.k='cam2'; cam2Lab.className=''; cam2Lab.innerHTML=''; }
+  cam2bEl.hidden=true; if (cam2Lab.dataset.k!=='cam2'){ cam2Lab.dataset.k='cam2'; cam2Lab.className=''; cam2Lab.innerHTML=''; }
   const W=renderer.domElement.clientWidth, H=renderer.domElement.clientHeight; const {x,y,w,h}=cam2Rect(W,H);
-  cam2El.hidden=false; cam2El.style.width=w+'px'; cam2El.style.height=h+'px'; cam2Lab.textContent='Cam 2';
+  cam2El.hidden=false; cam2El.style.width=w+'px'; cam2El.style.height=h+'px'; cam2El.style.right=(W-x-w)+'px'; cam2El.style.bottom=y+'px'; cam2Lab.textContent='Cam 2';
   const a=w/h, sz=cam2.size; cam2Cam.left=-sz*a; cam2Cam.right=sz*a; cam2Cam.top=sz; cam2Cam.bottom=-sz; cam2Cam.updateProjectionMatrix();
   const tgt=new THREE.Vector3(...cam2.at), d=new THREE.Vector3(...cam2.dir).normalize(); cam2Cam.position.copy(tgt).addScaledVector(d,cam2.dist||120);
   cam2Cam.up.set(0,1,0); if (Math.abs(d.y)>0.9) cam2Cam.up.set(0,0,-1); cam2Cam.lookAt(tgt);
@@ -1370,13 +1408,19 @@ function renderCam2(){ if (!cam2){ cam2El.hidden=true; cam2bEl.hidden=true; retu
   renderer.setScissorTest(false); renderer.setViewport(0,0,W,H); }
 
 /* ============================== loop ============================== */
-function resize(){ const w=app.clientWidth, h=app.clientHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
-addEventListener('resize',resize); resize();
+const PHONE_MQ=matchMedia('(max-width:760px) and (orientation:portrait)'), midEl=document.querySelector('#bottom .mid'), navEl=document.querySelector('#stepBox .nav'), dockEl=document.getElementById('bottom');
+function applyLayout(){ const ph=PHONE_MQ.matches; document.body.classList.toggle('phone',ph);
+  if (ph && midEl.parentNode!==navEl) navEl.insertBefore(midEl,bNext); else if (!ph && midEl.parentNode!==dockEl) dockEl.appendChild(midEl); }
+function resize(){ applyLayout(); const w=app.clientWidth, h=app.clientHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+let refitT=0;
+function refit(){ clearTimeout(refitT); refitT=setTimeout(()=>{ if (busy||animating||reversing||magOn||magBusy) return; const st=STEPS[cur]; fitCheck=!!st.check;
+  flyTo(fit(focusOf(st), st.cam[1], st.cam[2], st.cam2?(st.cam2.compare?'compare':true):false), false); }, 250); }
+addEventListener('resize',()=>{ resize(); refit(); }); resize();
 window.__frames=[]; let __lastF=0;
 function frame(now){ if(__lastF && window.__frames.length<50000) window.__frames.push(now-__lastF); __lastF=now; if (HOLD){ requestAnimationFrame(frame); return; }
   for (const a of [...anims]) a.step(now);
   if (live && !live.done && now-live.t0-live.last>=1000/30){ live.last=now-live.t0; live.frames.push(capture(live.last)); }
-  camera.position.copy(camState.pos); camera.lookAt(camState.tgt); syncScrewTray(); if (!window.__noRender){ updateMag(); renderer.render(scene,camera); if (magHeld()){ renderer.autoClear=false; renderer.clearDepth(); renderer.render(handScene,camera); renderer.autoClear=true; } renderCam2(); updateLabels(); placeCallout(); } requestAnimationFrame(frame); }
+  camera.position.copy(camState.pos); camera.lookAt(camState.tgt); bench.userData.chairBack.visible = bench.userData.chairSeat.visible = camState.pos.z < 88; /* a camera pulled back past the chair does not look through it */ syncScrewTray(); if (!window.__noRender){ updateMag(); renderer.render(scene,camera); if (magHeld()){ renderer.autoClear=false; renderer.clearDepth(); renderer.render(handScene,camera); renderer.autoClear=true; } renderCam2(); updateLabels(); placeCallout(); } requestAnimationFrame(frame); }
 // compile every material's shader up front, including ones that only appear mid-animation, so nothing stalls the first time it shows
 { const warm=[CAP_MAT, M.ghost].map(mt=>{ const w=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.1,0.1),mt); w.position.set(0,-50,0); scene.add(w); return w; });
   renderer.compile(scene,camera); warm.forEach(w=>scene.remove(w)); }
