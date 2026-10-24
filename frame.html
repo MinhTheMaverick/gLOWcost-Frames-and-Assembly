@@ -1,0 +1,1383 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="3D step-by-step build guide for the gLOWCOST detector frame.">
+<title>gLOWCOST Frame Build</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: the 3D bench fills the viewport. One panel top-left (counter, the instruction, the parts this step uses),
+   one bar at the bottom: magnifier, restart / skip, back / next. */
+:root{
+  --bg:#2a2b2d; --fg:#ecebe7; --muted:#a6a8ad; --band:rgba(30,31,33,.92); --line:#4a4c50;
+  --btn:#ecebe7; --btn-fg:#1c1d1f; --check:#f08a4b; --hold:#f08a4b;
+  --t-s:12px; --t-m:14px; --t-l:17px; color-scheme:dark;   /* always dark, whatever the system setting: it stands out against the table */
+  --font:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif; --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);overflow:hidden}
+#app{position:fixed;inset:0}
+canvas{display:block;width:100%;height:100%}
+#stepBox{position:absolute;left:max(16px,env(safe-area-inset-left,0px));top:max(16px,env(safe-area-inset-top,0px));width:clamp(260px,30vw,400px);box-sizing:border-box;
+  background:var(--band);border:1px solid var(--line);border-radius:6px;padding:12px 14px 12px;display:grid;gap:10px;backdrop-filter:blur(4px)}
+#counter{font-family:var(--mono);font-size:var(--t-s);letter-spacing:.06em;color:var(--muted);white-space:nowrap;display:flex;justify-content:space-between}
+#counter b{color:var(--fg);font-weight:500}
+#rep{color:var(--fg)}
+#sentence{margin:0;font-size:var(--t-l);line-height:1.38;font-weight:500}
+#note{margin:-2px 0 0;font-size:var(--t-m);line-height:1.42;color:var(--muted)}
+#note[hidden]{display:none}
+#sentence.check::before{content:"Check";font-family:var(--mono);font-size:var(--t-s);letter-spacing:.08em;text-transform:uppercase;color:var(--check);margin-right:8px}
+#sentence .r{color:#c8382c}#sentence .b{color:#2b63c4}
+#partsRow{display:flex;flex-wrap:wrap;gap:6px 16px;border-top:1px solid var(--line);padding-top:10px}
+#partsRow[hidden]{display:none}
+#partsRow .item{display:flex;align-items:center;gap:6px}
+#partsRow img{width:60px;height:60px;display:block}
+#partsRow .n{font-family:var(--mono);font-size:var(--t-l);font-weight:500;color:var(--fg)}
+#bottom{position:absolute;left:50%;bottom:max(12px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);padding:6px;display:flex;justify-content:center;align-items:center;gap:6px;
+  background:var(--band);border:1px solid var(--line);border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.14);backdrop-filter:blur(6px)}   /* a small dock, not a bar */
+#bottom .mid{display:flex;gap:6px;justify-content:center;align-items:center}
+#bottom button{border-color:transparent} #bottom button:not(:disabled):hover{border-color:var(--line)}
+#stepBox .nav{display:flex;gap:8px}
+#stepBox .nav #next{flex:1}
+button{font:inherit;font-family:var(--mono);font-size:var(--t-s);letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line);background:transparent;color:var(--fg);padding:10px 16px;border-radius:4px;cursor:pointer;white-space:nowrap}
+button:focus-visible{outline:2px solid var(--check);outline-offset:2px}
+button:disabled{opacity:.35;cursor:default}
+#next{background:var(--btn);color:var(--btn-fg);border-color:var(--btn);font-weight:500}
+#next.wait{background:transparent;color:var(--check);border-color:var(--check)}
+#back{min-width:84px}
+.lbl{position:absolute;transform:translate(-50%,-50%);pointer-events:none;font-family:var(--mono);font-size:var(--t-s);letter-spacing:.05em;color:var(--fg);background:var(--band);padding:2px 6px;border-radius:3px;border:1px solid var(--line);white-space:nowrap}
+.lbl.hold{color:var(--hold);border-color:var(--hold);font-weight:500}
+.lbl.count{color:var(--check);border-color:var(--check);font-weight:500}
+.lbl.tray{opacity:.85}
+.lbl.fly{color:var(--fg);border-color:var(--fg);font-weight:500}
+.lbl.dim{color:#f4d23c;background:#1c1d1f;border-color:#f4d23c;font-weight:500}
+#magHint{position:absolute;pointer-events:none;display:flex;flex-direction:column;align-items:flex-start;animation:hintBob 1.6s ease-in-out infinite}
+#magHint[hidden]{display:none}
+#magHint span{font-family:var(--mono);font-size:var(--t-s);letter-spacing:.05em;color:#f4d23c;background:#1c1d1f;border:1px solid #f4d23c;border-radius:3px;padding:2px 6px;font-weight:500}
+@keyframes hintBob{0%,100%{translate:0 0}50%{translate:0 -5px}}
+@media (prefers-reduced-motion: reduce){ #magHint{animation:none} }
+#keyHint{position:absolute;left:50%;bottom:80px;transform:translateX(-50%);color:#fff;font-size:var(--t-m);letter-spacing:.02em;pointer-events:none;white-space:nowrap;background:rgba(20,21,23,.72);border-radius:999px;padding:6px 14px;backdrop-filter:blur(4px)}
+#keyHint[hidden]{display:none}
+#keyHint kbd{font-family:var(--mono);font-size:var(--t-s);border:1px solid rgba(255,255,255,.55);border-radius:4px;padding:1px 6px}
+.lbl.deg{color:#fff;background:#d7262b;border-color:#d7262b;font-weight:500;padding:1px 5px}
+#why{position:absolute;right:max(16px,env(safe-area-inset-right,0px));bottom:70px;max-width:340px;background:var(--band);border:1px solid var(--line);border-radius:4px;padding:10px 12px;font-size:var(--t-m);line-height:1.45;color:var(--fg)}
+#why b{font-family:var(--mono);font-size:var(--t-s);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:3px}
+#why[hidden]{display:none}
+#callout{position:absolute;width:250px;background:var(--band);border:1.5px solid #d7262b;border-radius:5px;padding:9px 11px 10px;display:grid;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+#callout[hidden]{display:none}
+#callout .prog{font-family:var(--mono);font-size:var(--t-s);letter-spacing:.08em;text-transform:uppercase;color:#d7262b}
+#callout .q{font-size:var(--t-m);line-height:1.35;font-weight:500}
+#callout .row{display:flex;gap:8px}
+#callout .row button{flex:1;padding:7px 0}
+#callout #cYes{background:var(--btn);color:var(--btn-fg);border-color:var(--btn)}
+#callout .msg{font-size:var(--t-m);line-height:1.4;color:var(--fg)}
+#callout .msg button{margin-top:6px;padding:5px 10px}
+#cam2{position:absolute;right:max(16px,env(safe-area-inset-right,0px));bottom:70px;border:2px solid #1c1d1f;border-radius:4px;pointer-events:none}
+#cam2[hidden],#cam2b[hidden]{display:none}
+#cam2b{position:absolute;bottom:70px;border:2px solid #1c1d1f;border-radius:4px;pointer-events:none}
+#cam2 .badge,#cam2b .badge{position:absolute;left:8px;top:8px;width:30px;height:30px;padding:0;border-radius:6px;display:grid;place-items:center}
+#cam2 .badge.ok{background:#1f9d55} #cam2b .badge.no{background:#d7262b}
+.badge svg{width:20px;height:20px;stroke:#fff;stroke-width:3.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+#cam2 span{position:absolute;left:0;top:0;background:#1c1d1f;color:#f6f4f0;font-family:var(--mono);font-size:var(--t-s);letter-spacing:.06em;padding:3px 7px;text-transform:uppercase}
+/* magnifier: the same object as the one on the tray, a steel ring on a wooden handle */
+#magBtn{width:40px;height:40px;border-radius:50%;padding:0;display:grid;place-items:center;background:var(--band)}
+#magBtn svg{width:30px;height:30px;display:block}
+#magBtn.on{background:var(--btn);border-color:var(--btn)}
+@media (max-width:760px){ #bottom .long{display:none} #why{display:none} #stepBox{width:calc(100vw - 32px)} }
+@media (max-width:520px){ #bottom .mid{gap:6px} #bottom button{padding:10px 10px} #magBtn{width:40px;height:40px;padding:0} }
+@media (prefers-reduced-motion: reduce){ :root{--motion:0} }
+</style>
+
+<div id="app">
+  <div id="stepBox"><div id="counter"><span><b id="n">1</b> / <span id="total">0</span></span><span id="rep"></span></div><p id="sentence"></p><p id="note" hidden></p><div id="partsRow" hidden></div><div class="nav"><button id="back">Back</button><button id="next">Next</button></div></div>
+  <div id="why" hidden></div>
+  <svg id="leader" width="100%" height="100%" style="position:absolute;inset:0;pointer-events:none"><line id="leaderLine" x1="0" y1="0" x2="0" y2="0" stroke="#d7262b" stroke-width="1.6" stroke-dasharray="5 4" visibility="hidden"/><circle id="leaderDot" r="4" fill="#d7262b" visibility="hidden"/></svg>
+  <div id="callout" hidden><div class="prog" id="cProg"></div><div class="q" id="cQ"></div><div class="row" id="cRow"><button id="cYes">Confirm</button></div></div>
+  <div id="cam2" hidden><span id="cam2Label"></span></div><div id="cam2b" class="cam2x" hidden><span class="badge no"></span></div>
+  <div id="labels"></div>
+  <div id="keyHint" hidden><kbd>Space</kbd> to continue &nbsp;·&nbsp; <kbd>Backspace</kbd> to go back</div>
+  <div id="magHint" hidden><span>or this button</span><svg width="40" height="56" viewBox="0 0 40 56"><path d="M20 2 V44" stroke="#f4d23c" stroke-width="3" fill="none"/><path d="M9 34 L20 50 L31 34" stroke="#f4d23c" stroke-width="3" fill="none" stroke-linejoin="round"/></svg></div>
+  <div id="bottom">
+    <div class="mid"><button id="restart">Restart<span class="long"> animation</span></button><button id="skip">Skip<span class="long"> animation</span></button>
+      <button id="magBtn" title="Magnifier" aria-label="Magnifier"><svg viewBox="0 0 32 32"><circle cx="13" cy="13" r="8.5" fill="rgba(207,230,245,.25)" stroke="#b9bec4" stroke-width="3"/><path d="M19.2 19.2 L21.4 21.4" stroke="#b9bec4" stroke-width="2.6"/><path d="M21.6 21.6 L28.4 28.4" stroke="#8a5a3c" stroke-width="4.4" stroke-linecap="round"/></svg></button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+/* ============================== scene ============================== */
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({antialias:true, powerPreference:'low-power'});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1, 3));
+app.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+const css = getComputedStyle(document.documentElement);
+scene.background = new THREE.Color(0x1f7fd2);   // instruction-booklet blue, both themes
+const camera = new THREE.PerspectiveCamera(42, 1, 1, 1000);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a847a, 0.72));
+const sun = new THREE.DirectionalLight(0xffffff, 0.62); sun.position.set(30, 90, 70); scene.add(sun);
+
+const M = {
+  alu:  new THREE.MeshStandardMaterial({color:0xa7abb0, roughness:.5, metalness:.15}),
+  dark: new THREE.MeshStandardMaterial({color:0x6e7277, roughness:.6, metalness:.2}),
+  nut:  new THREE.MeshStandardMaterial({color:0xc19a45, roughness:.5, metalness:.3}),
+  screw:new THREE.MeshStandardMaterial({color:0x303234, roughness:.55, metalness:.3}),
+  rubber:new THREE.MeshStandardMaterial({color:0x222222, roughness:.95}),
+  red:  new THREE.MeshStandardMaterial({color:0xc8382c, roughness:.7}),
+  blue: new THREE.MeshStandardMaterial({color:0x2b63c4, roughness:.7}),
+  table:new THREE.MeshStandardMaterial({color:0xb3a58d, roughness:.9}),
+  tray: new THREE.MeshStandardMaterial({color:0xd4d2cb, roughness:.85}),
+  trayIn:new THREE.MeshStandardMaterial({color:0xc3c1b9, roughness:.9}),
+  chair:new THREE.MeshStandardMaterial({color:0x8f8a82, roughness:.9}),
+  ghost:new THREE.MeshBasicMaterial({color:0xb8470c, transparent:true, opacity:.28, depthWrite:false}),
+  steel:new THREE.MeshStandardMaterial({color:0x5c6166, roughness:.45, metalness:.5}),
+  clear:new THREE.MeshStandardMaterial({color:0xdfe9f2, roughness:.2, metalness:.05, transparent:true, opacity:.35, depthWrite:false}),
+  glass:new THREE.MeshStandardMaterial({color:0xcfe6f5, roughness:.1, transparent:true, opacity:.25, depthWrite:false}),
+  wood:new THREE.MeshStandardMaterial({color:0x8a5a3c, roughness:.8}),
+};
+
+/* ============================== geometry ============================== */
+const POST_L = 30.9, RAIL_L = 20.32, HALF = 11.16;           // cm
+const LEVEL_Y = [30.5, 17.5, 4.5];                             // rail centre heights, upright, feet included
+const NUT_H = [27.75, 14.75, 6.05];                            // post-nut heights from the foot end (in line with the bracket holes)
+const NUT_D = 0.715;                                             // nut centre depth from the extrusion axis (under the 1.8 mm lips)
+const HOLE = 1.15;                                              // bracket hole centre, from the bracket's outer corner
+function profileShape(){
+  // 20x20 mm, slot opening 6.2 mm, lip 1.8 mm, cavity 11.2 mm wide under the lips, webs 1.6 mm, core 7.6 mm with a 4.2 mm bore
+  const h=1, o=0.31, lipIn=0.82, cav=0.56, wo=0.11, rc=0.38;
+  // web edge on the +x cavity side: y = -(x - wo) for the lower web; meets the core circle at:
+  const xc=(wo+Math.sqrt(wo*wo-2*(wo*wo-rc*rc)))/2, yc=-(xc-wo);
+  const a0=Math.atan2(yc,xc);
+  const face=[[h,-h],[h,-o],[lipIn,-o],[lipIn,-cav],[cav+wo,-cav]];
+  for (let k=0;k<=8;k++){ const a=a0+(-2*a0)*k/8; face.push([rc*Math.cos(a), rc*Math.sin(a)]); }
+  face.push([cav+wo,cav],[lipIn,cav],[lipIn,o],[h,o]);
+  const pts=[];
+  for(let k=0;k<4;k++){ const a=k*Math.PI/2, c=Math.cos(a), s=Math.sin(a); for(const [x,y] of face) pts.push(new THREE.Vector2(x*c-y*s, x*s+y*c)); }
+  const sh=new THREE.Shape(pts); sh.holes.push(new THREE.Path().absarc(0,0,0.21,0,Math.PI*2,true));
+  return sh;
+}
+const PROFILE = profileShape();
+function extrusion(len){ return new THREE.ExtrudeGeometry(PROFILE, {depth:len, bevelEnabled:false, steps:1}); }
+// T-nut: a flat plate pressed up under the lips (its face toward the slot opening), and the stem of the T pointing down into the beam. 10 mm long.
+const TNUT_SHAPE=new THREE.Shape([[0.10,-0.47],[0.10,0.47],[-0.02,0.47],[-0.02,0.2],[-0.20,0.2],[-0.20,-0.2],[-0.02,-0.2],[-0.02,-0.47]].map(([u,v])=>new THREE.Vector2(u,v)));
+function tnut(out, along){ // shape in (out, across), extruded along the groove; 'out' points to the slot opening
+  const u=new THREE.Vector3(...out), w=new THREE.Vector3(...along), v=new THREE.Vector3().crossVectors(w,u);
+  const g=new THREE.ExtrudeGeometry(TNUT_SHAPE,{depth:1.0,bevelEnabled:false}).translate(0,0,-0.5);
+  g.applyMatrix4(new THREE.Matrix4().makeBasis(u,v,w)); g.userData={out:u.clone()}; return g; }
+const G = {
+  post: extrusion(POST_L).rotateX(-Math.PI/2),                 // along +y, foot at y=0
+  rail: extrusion(RAIL_L).rotateY(Math.PI/2).translate(-RAIL_L/2,0,0), // along x, centred
+  nutX: tnut([1,0,0],[0,1,0]),                                // post groove on the +x face (groove runs along y)
+  nutYp:tnut([0,1,0],[1,0,0]),                                // rail groove on the +y face (groove runs along x)
+  nutYn:tnut([0,-1,0],[1,0,0]),                               // rail groove on the -y face
+  nutZ: tnut([0,0,1],[0,1,0]),                                // post groove on the +z face
+  nutZr:tnut([0,0,1],[1,0,0]),                                // rail groove on the +z face
+  foot: new THREE.LatheGeometry([[0.22,0.775],[0.22,0.225],[0.42,0.225],[0.42,-0.775],[0.78,-0.775],[1.0,0.775],[0.22,0.775]].map(([r,y])=>new THREE.Vector2(r,y)),28),   // tapered, wide end on the post; counterbore underneath for its screw
+  head: new THREE.CylinderGeometry(0.22,0.48,0.28,20),          // button head
+  shaft:new THREE.CylinderGeometry(0.2,0.2,0.9,10),
+};
+function mesh(geo, mat){ const m=new THREE.Mesh(geo,mat); return m; }
+const HOLE_MAT=new THREE.MeshBasicMaterial({color:0x2a2116}), HOLE_GEO=new THREE.CircleGeometry(0.17,16);
+function tnutMesh(geo){ const m=mesh(geo,M.nut); const h=new THREE.Mesh(HOLE_GEO,HOLE_MAT); const o=geo.userData.out;   // the threaded hole, on the ridge
+  h.position.copy(o).multiplyScalar(0.102); h.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),o); m.add(h); return m; }
+const FOOT_H=1.55, FOOT_DROP=FOOT_H-0.6;                       // the feet reach 0.95 below the frame's foot plane (y=0)
+const SILVER=new THREE.MeshStandardMaterial({color:0xc9cdd2, roughness:.32, metalness:.55});
+function footScrewObj(){ // socket-head cap screw for a foot: points +y, head at the bottom (y 0..0.4), threaded part 13 mm
+  const g=new THREE.Group(); const h=mesh(new THREE.CylinderGeometry(0.27,0.27,0.4,16),SILVER); h.position.y=0.2; g.add(h);
+  const sk=new THREE.Mesh(new THREE.CircleGeometry(0.13,6),HOLE_MAT); sk.rotation.x=Math.PI/2; sk.position.y=-0.001; g.add(sk);
+  const sh=mesh(new THREE.CylinderGeometry(0.2,0.2,1.3,10),SILVER); sh.position.y=0.4+0.65; g.add(sh);
+  g.userData.kind='screw'; g.visible=false; return g; }
+function screwObj(){ // points +y, head at the bottom (y 0..0.4), shaft above
+  const g=new THREE.Group(); const h=mesh(G.head,M.screw); h.position.y=0.14; h.rotation.x=Math.PI; const s=mesh(G.shaft,M.screw); s.position.y=0.28+0.45; g.add(h,s);
+  g.userData.kind='screw'; g.visible=false; return g;
+}
+const BRK_T=0.35, BRK_W=0.25;                                  // leg and side-wall thickness
+function legGeo(){ // plate: x 0..2 along the leg, z -1..1 across, y 0..-BRK_T; an oval hole at x=HOLE
+  const sh=new THREE.Shape([new THREE.Vector2(0,-1),new THREE.Vector2(2,-1),new THREE.Vector2(2,1),new THREE.Vector2(0,1)]);
+  const r=0.27, l=0.12; const hp=new THREE.Path();
+  hp.moveTo(HOLE-l, -r); hp.lineTo(HOLE+l,-r); hp.absarc(HOLE+l,0,r,-Math.PI/2,Math.PI/2,false); hp.lineTo(HOLE-l,r); hp.absarc(HOLE-l,0,r,Math.PI/2,Math.PI*1.5,false);
+  sh.holes.push(hp);
+  return new THREE.ExtrudeGeometry(sh,{depth:BRK_T,bevelEnabled:false}).rotateX(Math.PI/2);
+}
+const BRK_GEO={ leg:legGeo(),
+  wall:(()=>{ const sh=new THREE.Shape([new THREE.Vector2(0,0),new THREE.Vector2(1.95,0),new THREE.Vector2(1.95,-0.25),new THREE.Vector2(0.25,-1.95),new THREE.Vector2(0,-1.95)]);
+    return new THREE.ExtrudeGeometry(sh,{depth:BRK_W,bevelEnabled:false}); })(),
+  key:new THREE.BoxGeometry(0.34,0.16,0.5) };
+function bracketObj(){
+  const g=new THREE.Group();
+  const railLeg=mesh(BRK_GEO.leg,M.dark);                                  // outer face on y=0 (against the rail), runs +x
+  const postLeg=mesh(BRK_GEO.leg,M.dark); postLeg.quaternion.copy(qMul(qAA(X,Math.PI),qAA(Z,Math.PI/2)));  // outer face on x=0 (against the post), runs -y
+  const w1=mesh(BRK_GEO.wall,M.dark); w1.position.z=1-BRK_W; const w2=mesh(BRK_GEO.wall,M.dark); w2.position.z=-1;
+  g.add(railLeg,postLeg,w1,w2);
+  for (const u of [0.3,1.8]){ const k1=mesh(BRK_GEO.key,M.dark); k1.position.set(u,0.08,0); g.add(k1);       // keys ride in the rail's slot
+    const k2=mesh(BRK_GEO.key,M.dark); k2.rotation.z=Math.PI/2; k2.position.set(-0.08,-u,0); g.add(k2); }    // and in the post's slot
+  const rs=screwObj(); rs.position.set(HOLE,-BRK_T-0.28,0); g.add(rs);                                      // up through the rail leg
+  const ps=screwObj(); ps.position.set(BRK_T+0.28,-HOLE,0); ps.quaternion.copy(qAA(Z,Math.PI/2)); g.add(ps); // sideways through the post leg
+  g.userData={kind:'bracket', railScrew:rs, postScrew:ps};
+  return g;
+}
+function trayObj(w,d,x,z,rim=2){
+  const g=new THREE.Group();
+  const floor=mesh(new THREE.BoxGeometry(w,0.15,d),M.trayIn); floor.position.y=-0.075; g.add(floor);
+  const t=0.6;
+  for (const [sx,sz,ww,dd] of [[0,-d/2,w,t],[0,d/2,w,t],[-w/2,0,t,d],[w/2,0,t,d]]){ const r=mesh(new THREE.BoxGeometry(ww,rim,dd),M.tray); r.position.set(sx,rim/2-0.15,sz); g.add(r); }
+  g.position.set(x,0,z); return g;
+}
+
+/* ============================== bench ============================== */
+const TRAYS={ // centre x, z and outer size; walls 6 mm thick on the edges, 1.85 cm tall
+  work:  {x:0,    z:0,     w:84, d:62},   // nearest the chair
+  long:  {x:-32,  z:-49.5, w:92, d:31},   // posts, rails, T-square, Allen key
+  nuts:  {x:27.5, z:-58.5, w:15, d:15},
+  screws:{x:46.5, z:-58.5, w:15, d:15},
+  brk:   {x:39,   z:-41,   w:38, d:14},
+  small: {x:73,   z:-41,   w:22, d:14} }; // feet and sticky notes
+const bench = new THREE.Group(); scene.add(bench);
+{ const top=mesh(new THREE.BoxGeometry(175,3,118),M.table); top.position.set(0,-1.65,-8); bench.add(top);   // top face 1.5 mm under the tray floors: no z-fighting
+  for (const [x,z] of [[-82,-62],[82,-62],[-82,46],[82,46]]){ const leg=mesh(new THREE.BoxGeometry(4,72,4),M.table); leg.position.set(x,-39,z); bench.add(leg); }
+  const seat=mesh(new THREE.BoxGeometry(42,4,40),M.chair); seat.position.set(0,-30,72); bench.add(seat);
+  const back=mesh(new THREE.BoxGeometry(42,42,3),M.chair); back.position.set(0,-9,93); bench.add(back);
+  // trays
+  for (const t of Object.values(TRAYS)) bench.add(trayObj(t.w,t.d,t.x,t.z));
+}
+const TRAY_LABELS = ['long','nuts','screws','brk','small'].map(id=>({id, p:[TRAYS[id].x, 3, TRAYS[id].z-TRAYS[id].d/2]}));
+
+/* ============================== parts ============================== */
+const parts = {};            // id -> Object3D
+const build = new THREE.Group(); scene.add(build);      // frame, upright-local coordinates (y up, foot plane y=0, front = +z)
+const X=new THREE.Vector3(1,0,0), Y=new THREE.Vector3(0,1,0), Z=new THREE.Vector3(0,0,1);
+const qAA=(axis,a)=>new THREE.Quaternion().setFromAxisAngle(axis,a);
+const qMul=(...qs)=>qs.reduce((a,b)=>a.clone().multiply(b));
+function reg(id, obj, kind){ obj.userData.id=id; obj.userData.kind=kind; obj.userData.homes={}; parts[id]=obj; scene.add(obj); return obj; }
+function home(id, name, parent, pos, quat){ parts[id].userData.homes[name]={parent, pos:new THREE.Vector3(...pos), quat:(quat||new THREE.Quaternion()).clone()}; }
+function place(id,name){ const h=parts[id].userData.homes[name]; const o=parts[id]; h.parent.add(o); o.position.copy(h.pos); o.quaternion.copy(h.quat); o.userData.home=name; }
+
+// posts: corners, upright local. Red post = front-left (x-, z+).
+const CORNERS=[[-1,1],[1,1],[1,-1],[-1,-1]];   // 0 red front-left, 1 front-right, 2 back-right, 3 back-left
+const POST_YAW={'-1,-1':0,'1,1':Math.PI,'1,-1':-Math.PI/2,'-1,1':Math.PI/2};
+for (let i=0;i<4;i++){
+  const p=reg('post'+i, mesh(G.post,M.alu), 'post');
+  const [sx,sz]=CORNERS[i];
+  home('post'+i,'build',build,[sx*HALF,0.6,sz*HALF], qAA(Y, POST_YAW[sx+','+sz]));
+  home('post'+i,'storage',scene,[-42,1,-62+i*5], qMul(qAA(Z,Math.PI/2)));                 // lying along x, spans x -72.9..-42
+  home('post'+i,'stage',scene,[-37+i*6.5,1,16], qMul(qAA(X,-Math.PI/2), qAA(Y,-Math.PI/2)));  // lying along z, foot toward the chair, groove +x up
+  // nuts: local +x groove and +z groove, at the three heights
+  for (let k=0;k<3;k++){
+    const nx=reg(`p${i}x${k}`, tnutMesh(G.nutX),'nut'); home(`p${i}x${k}`,'loaded',p,[NUT_D,NUT_H[k],0]);
+    const nz=reg(`p${i}z${k}`, tnutMesh(G.nutZ),'nut'); home(`p${i}z${k}`,'loaded',p,[0,NUT_H[k],NUT_D]);
+  }
+  // top-level brackets on the two loaded faces, rail leg pointing away from the post
+  const bx=bracketObj(); reg(`b_p${i}x`,bx,'bracket'); home(`b_p${i}x`,'on',p,[1,POST_L-2,0], new THREE.Quaternion());
+  const bz=bracketObj(); reg(`b_p${i}z`,bz,'bracket'); home(`b_p${i}z`,'on',p,[0,POST_L-2,1], qAA(Y,-Math.PI/2));
+  const foot=reg('foot'+i, mesh(G.foot,M.rubber),'foot'); home('foot'+i,'on',p,[0,-FOOT_H/2,0]); home('foot'+i,'storage',scene,[65.5+(i%2)*4,FOOT_H/2+0.01,-43.5+Math.floor(i/2)*5], qAA(X,Math.PI));   // in the tray: wide end down
+  { const fs=footScrewObj(); fs.position.y=-0.175; foot.add(fs); foot.userData.screw=fs; }
+}
+// rails: index = level*4 + side ; side 0 back, 1 front, 2 left, 3 right. Blue = 5 (middle front).
+const SIDE_Q=[qAA(Y,Math.PI), new THREE.Quaternion(), qAA(Y,-Math.PI/2), qAA(Y,Math.PI/2)];
+for (let i=0;i<12;i++){
+  const lv=Math.floor(i/4), side= i===4?1 : i===5?0 : i%4;     // the box rail (5) is the middle rail on the face that goes on first; rail 4 takes the opposite face
+  const r=reg('rail'+i, mesh(G.rail,M.alu),'rail');
+  const y=LEVEL_Y[lv];
+  const pos = side===0?[0,y,-HALF] : side===1?[0,y,HALF] : side===2?[-HALF,y,0] : [HALF,y,0];
+  let q=SIDE_Q[side].clone(); if (lv===2) q=qMul(q,qAA(X,Math.PI));    // bottom level: brackets above
+  home('rail'+i,'build',build,pos,q);
+  const col=Math.floor(i/6), row=i%6;
+  home('rail'+i,'storage',scene,[-24+col*23,1,-61+row*3], qAA(X,Math.PI));
+  home('rail'+i,'stage',scene,[-4+col*24,1,-11+row*5], qAA(X,Math.PI));     // 5 cm apart: room for each roll arrow                  // 3-nut groove (local -y) facing up
+  // nuts: bracket groove (local -y): ends + middle ; opposite groove (+y): middle
+  const xs=[-RAIL_L/2+HOLE, 0, RAIL_L/2-HOLE];
+  for (let k=0;k<3;k++){ reg(`r${i}a${k}`, tnutMesh(G.nutYn),'nut'); home(`r${i}a${k}`,'loaded',r,[xs[k],-NUT_D,0]); }
+  reg(`r${i}b`, tnutMesh(G.nutYp),'nut'); home(`r${i}b`,'loaded',r,[0,NUT_D,0]);
+  if (i===5) for (let k=0;k<3;k++){ reg(`r5c${k}`, tnutMesh(G.nutZr),'nut'); home(`r5c${k}`,'loaded',r,[-6+6*k,0,NUT_D]); }
+  if (lv>0){ // end brackets on middle and bottom rails
+    const b0=bracketObj(); reg(`b_r${i}L`,b0,'bracket'); home(`b_r${i}L`,'on',r,[-RAIL_L/2,-1,0], new THREE.Quaternion());
+    const b1=bracketObj(); reg(`b_r${i}R`,b1,'bracket'); home(`b_r${i}R`,'on',r,[RAIL_L/2,-1,0], qAA(Y,Math.PI));
+  }
+}
+// guide: a rail laid across the four lying posts, flush with their far (head) ends; brackets butt against its near edge
+home('rail0','guide',scene,[-27.25,3,16-POST_L+1], qAA(X,Math.PI));
+// set-aside spot for the four top rails: back-left of the work tray
+for (let i=0;i<4;i++) home('rail'+i,'aside',scene,[-28,1,-26+i*2.8], new THREE.Quaternion());
+// sticky notes: subassembly labels that stick to parts or lie on the tray floor
+function noteTexture(text,aspect=1){ const c=document.createElement('canvas'); c.height=256; c.width=Math.round(256*aspect); const W=c.width; const g=c.getContext('2d');
+  g.fillStyle='#f4df55'; g.fillRect(0,0,W,256); g.fillStyle='rgba(0,0,0,.10)'; g.fillRect(0,244,W,12);
+  g.fillStyle='#1c1d1f'; g.textAlign='center'; g.textBaseline='middle';
+  const lines=text.split('\n'); let fs=lines.length>1?(lines.some(l=>l.length>8)?34:44):(aspect>1.5?110:44);
+  g.font=`600 ${fs}px "IBM Plex Sans", system-ui, sans-serif`; while (Math.max(...lines.map(l=>g.measureText(l).width))>W*0.9 && fs>16){ fs-=2; g.font=`600 ${fs}px "IBM Plex Sans", system-ui, sans-serif`; }
+  lines.forEach((l,i)=>g.fillText(l,W/2,128+(i-(lines.length-1)/2)*(fs+8)));
+  const t=new THREE.CanvasTexture(c); t.anisotropy=4; return t; }
+function noteObj(text,w,h=w){ const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshBasicMaterial({map:noteTexture(text,w/h), side:THREE.DoubleSide})); m.userData.kind='note'; return m; }
+const FLAT=qAA(X,-Math.PI/2);                       // a plane facing +z, laid flat facing up, text reading from the chair
+const NOTES=[ ['n_box','BOX RAIL',4.6,1.8], ['n_head0','HEAD',1.9],['n_head1','HEAD',1.9],['n_head2','HEAD',1.9],['n_head3','HEAD',1.9],
+  ['n_aside','TOP RAILS\n×4',7], ['n_top','TOP SQUARE\nUPSIDE DOWN',7.6], ['n_back','LYING DOWN\nFEET THIS WAY ↓',7.6] ];
+NOTES.forEach(([id,text,w,h],k)=>{ reg(id, noteObj(text,w,h),'note'); home(id,'storage',scene,[79,0.06+k*0.04,-41], qMul(FLAT, qAA(Z,0))); });
+home('n_box','on',parts.rail5,[-8.3,0,1.03], new THREE.Quaternion());
+home('rail5','apart',scene,[30,1,-25], qAA(X,-Math.PI/2));        // on its own at the back-right of the work tray: note and box nuts facing up, brackets toward you            // on the rail's outer face, beside the three box nuts
+for (let i=0;i<4;i++) home('n_head'+i,'on',parts['post'+i],[0,POST_L-5.2,1.03], new THREE.Quaternion()); // on the top face, just short of the bracket, where you can read it
+home('n_aside','on',scene,[-28,0.06,-14], qMul(FLAT,qAA(Z,0.06)));
+home('n_top','on',scene,[19,0.06,-16], qMul(FLAT,qAA(Z,-0.05)));
+home('n_back','on',scene,[20,0.06,-12], qMul(FLAT,qAA(Z,0.04)));
+// tools
+function allenKey(){ const g=new THREE.Group(); const r=0.2;
+  const a=mesh(new THREE.CylinderGeometry(r,r,2.5,10),M.steel); a.position.y=1.25; g.add(a);                 // short arm, +y, tip at y=2.5
+  const b=mesh(new THREE.CylinderGeometry(r,r,7,10),M.steel); b.rotation.z=Math.PI/2; b.position.x=3.5; g.add(b); // long arm, +x
+  g.add(mesh(new THREE.SphereGeometry(r,10,8),M.steel)); return g; }
+const KEY_TIP=2.5;
+function tsquare(){ const g=new THREE.Group();
+  const blade=mesh(new THREE.BoxGeometry(30,0.25,3),M.clear); blade.position.set(15,0.125,0); g.add(blade);
+  const c=document.createElement('canvas'); c.width=1200; c.height=120; const x=c.getContext('2d'); x.fillStyle='rgba(255,255,255,0)'; x.clearRect(0,0,1200,120);
+  x.strokeStyle='#1c1d1f'; x.fillStyle='#1c1d1f'; x.font='600 30px "IBM Plex Sans", system-ui, sans-serif'; x.textAlign='center';
+  for (let cm=0;cm<=30;cm++){ const px=cm*40; const h = cm%5===0?46:(cm%1===0?26:14); x.lineWidth=cm%5===0?3:2; x.beginPath(); x.moveTo(px,0); x.lineTo(px,h); x.stroke(); if(cm%5===0&&cm>0) x.fillText(cm,px,86); }
+  for (const cm of [13,26]){ x.fillStyle='#b8470c'; x.beginPath(); x.arc(cm*40,100,9,0,Math.PI*2); x.fill(); x.fillStyle='#1c1d1f'; }
+  const tex=new THREE.CanvasTexture(c); const scale=mesh(new THREE.PlaneGeometry(30,3), new THREE.MeshBasicMaterial({map:tex,transparent:true})); scale.rotation.x=-Math.PI/2; scale.position.set(15,0.26,0); g.add(scale);
+  const head=mesh(new THREE.BoxGeometry(1.2,1.5,10),M.wood); head.position.set(-0.6,-0.5,0); g.add(head);  // hooks over the reference edge
+  return g; }
+const MAG_TWIST=Math.PI*3/4;     // held up to the eye, the handle points down and to the right
+function magnifier(){ const g=new THREE.Group();   // 10 cm lens, 11 cm handle
+  const ring=mesh(new THREE.TorusGeometry(5,0.4,12,48),M.steel); g.add(ring);
+  const glass=mesh(new THREE.CircleGeometry(4.8,48),M.glass); g.add(glass); g.userData.glass=glass;
+  const neck=mesh(new THREE.CylinderGeometry(0.35,0.35,1.2,10),M.steel); neck.rotation.z=Math.PI/2; neck.position.x=-5.9; g.add(neck);
+  const h=mesh(new THREE.CylinderGeometry(0.6,0.7,11,14),M.wood); h.rotation.z=Math.PI/2; h.position.set(-12,0,0.3); g.add(h);
+  return g; }
+reg('key', allenKey(),'tool'); home('key','storage',scene,[1,0.2,-39], qAA(X,-Math.PI/2));
+reg('tsq', tsquare(),'tool'); home('tsq','storage',scene,[-39,1.25,-39.5], qAA(Z,-0.042));   // head down on the tray, blade tip resting
+reg('mag', magnifier(),'tool'); home('mag','storage',scene,[-33,0.42,24.5], qMul(qAA(Y,Math.PI),qAA(X,-Math.PI/2)));   // in the work tray, front-left corner by the chair, handle toward the middle; the frame never goes there
+// storage for nuts (cup grid), brackets (tray grid)
+const NUT_IDS=Object.keys(parts).filter(id=>parts[id].userData.kind==='nut');
+const NUT_FLAT=g=> new THREE.Quaternion().setFromUnitVectors(g.userData.out, new THREE.Vector3(0,-1,0));    // in the cup: lying on its flat face, stem up
+NUT_IDS.forEach((id,n)=>{ const c=n%9, r=Math.floor(n/9); home(id,'storage',scene,[TRAYS.nuts.x-5.6+c*1.4,0.10,TRAYS.nuts.z-5.6+r*1.4], qMul(qAA(Y,(n*37%360)*Math.PI/180), NUT_FLAT(parts[id].geometry))); });
+const BRK_IDS=Object.keys(parts).filter(id=>parts[id].userData.kind==='bracket');
+BRK_IDS.forEach((id,n)=>{ const c=n%8, r=Math.floor(n/8); home(id,'storage',scene,[TRAYS.brk.x-16.6+c*4.4,0.16,TRAYS.brk.z-4.6+r*4.2], qAA(X,Math.PI)); });   // standing on the rail leg, keys down
+// screws live inside brackets; counted for the tray label
+const SCREWS=[]; for (const id of BRK_IDS){ SCREWS.push(parts[id].userData.railScrew, parts[id].userData.postScrew); }
+const FOOT_SCREWS=[0,1,2,3].map(i=>parts['foot'+i].userData.screw);
+[...SCREWS,...FOOT_SCREWS].forEach(sc=>{ sc.userData.p0=sc.position.clone(); sc.userData.q0=sc.quaternion.clone(); sc.userData.home0=sc.parent; });   // where each screw sits once driven
+
+/* build poses: inverted on the work tray, lying on its back, upright */
+const POSE={};
+POSE.inverted={pos:new THREE.Vector3(0,31.5,-16), quat:qAA(X,Math.PI)};
+function tipped(from, pivot, axis, angle){ // rotate a pose about a world line
+  const q=qAA(axis,angle); const pos=from.pos.clone().sub(pivot).applyQuaternion(q).add(pivot);
+  return {pos, quat:qMul(q,from.quat)};
+}
+POSE.lying = tipped(POSE.inverted, new THREE.Vector3(0,0,-16+12.16), X, Math.PI/2);   // spans z -3.8 .. 27.7
+POSE.lying2 = {pos:POSE.lying.pos.clone().add(new THREE.Vector3(0,0,-23.2)), quat:POSE.lying.quat.clone()}; // slid back: z -27 .. 4.5
+function feetEdge(pose, lz=-12.16){ // bottom edge of the feet face of the side lying on the table: local (0,0,-12.16) on its back, (0,0,12.16) on its front
+  const tmp=new THREE.Object3D(); tmp.position.copy(pose.pos); tmp.quaternion.copy(pose.quat); tmp.updateMatrixWorld();
+  return tmp.localToWorld(new THREE.Vector3(0,-FOOT_DROP,lz)); }   // the bottom edge of the feet themselves
+POSE.upright = tipped(POSE.lying2, feetEdge(POSE.lying2), X, Math.PI/2);                 // stands at z 4.5 .. 28.8
+// the sides: rolled a quarter turn at a time and slid back each time, so the frame always lies right in front of the chair (z -3.8 .. 27.7)
+POSE.left  = {pos:POSE.lying.pos.clone(), quat:qMul(qAA(Z, Math.PI/2),POSE.lying.quat)};
+POSE.right = {pos:POSE.lying.pos.clone(), quat:qMul(qAA(Z,-Math.PI/2),POSE.lying.quat)};
+POSE.front = {pos:POSE.lying.pos.clone(), quat:qMul(qAA(Z,-Math.PI),POSE.lying.quat)};
+POSE.front2 = {pos:POSE.front.pos.clone().add(new THREE.Vector3(0,0,-24.2)), quat:POSE.front.quat.clone()};  // slid back to stand it up
+POSE.upFront = tipped(POSE.front2, feetEdge(POSE.front2, HALF+1), X, Math.PI/2);          // standing, the box rail facing away
+POSE.__roll = {pos:new THREE.Vector3(), quat:new THREE.Quaternion()};
+POSE.headTip = tipped(POSE.front, new THREE.Vector3(0,0,POSE.front.pos.z-(0.6+POST_L)), X, -Math.PI/2);   // stood on its top, the box rail on the far side
+POSE.headDown = {pos:POSE.headTip.pos.clone().add(new THREE.Vector3(0,0,26)), quat:POSE.headTip.quat.clone()};   // then slid back toward you
+{ const q=qMul(qAA(Z,Math.PI),POSE.headDown.quat), g=new THREE.Object3D(); g.quaternion.copy(q); g.updateMatrixWorld(true);
+  const c=new THREE.Vector3(0,15.3,0); const g0=new THREE.Object3D(); g0.position.copy(POSE.headDown.pos); g0.quaternion.copy(POSE.headDown.quat); g0.updateMatrixWorld(true);
+  const C=g0.localToWorld(c.clone()); C.y=15.3+FOOT_DROP; POSE.final={pos:C.clone().sub(c.clone().applyQuaternion(q)), quat:q}; }   // turned over sideways about its own centre, standing on its feet
+function setPose(name){ build.position.copy(POSE[name].pos); build.quaternion.copy(POSE[name].quat); build.userData.pose=name; }
+
+/* ghost: where the next part goes */
+const ghostGroup=new THREE.Group(); scene.add(ghostGroup);
+function showGhost(){ /* destinations are already outlined in red for the whole step */ }
+function showGhostOld(id, homeName){
+  const o=parts[id], h=o.userData.homes[homeName];
+  const gm=new THREE.Mesh(o.geometry || G.nutYp, M.ghost);
+  if (!o.geometry){ // group (bracket): use a box
+    gm.geometry=new THREE.BoxGeometry(2.3,2.3,2);
+  }
+  h.parent.updateMatrixWorld(true);
+  const m=new THREE.Matrix4().compose(h.pos,h.quat,new THREE.Vector3(1,1,1)).premultiply(h.parent.matrixWorld);
+  m.decompose(gm.position,gm.quaternion,gm.scale); ghostGroup.add(gm);
+}
+function clearGhosts(){ while(ghostGroup.children.length) ghostGroup.remove(ghostGroup.children[0]); ghostGroup.userData.marks=[]; }
+
+/* ============================== red dashed marks ============================== */
+const MARK_RED=0xd7262b;
+const DASH=new THREE.LineDashedMaterial({color:MARK_RED, dashSize:0.45, gapSize:0.3, depthTest:false, transparent:true, opacity:0.95});
+const ARROW_MAT=new THREE.MeshBasicMaterial({color:MARK_RED, depthTest:false, transparent:true, opacity:0.9});
+const markGroup=new THREE.Group(); scene.add(markGroup);
+function clearMarks(){ while(markGroup.children.length){ const c=markGroup.children[0]; markGroup.remove(c); if(c.geometry) c.geometry.dispose(); } }
+function ownLocalBox(o){ // the part's own geometry (not parts fixed to it, not screws), in its own frame
+  o.updateMatrixWorld(true); const inv=o.matrixWorld.clone().invert(), b=new THREE.Box3();
+  const walk=c=>{ if(c!==o && c.userData.id) return; if(c.userData.kind==='screw') return; if(c.geometry){ if(!c.geometry.boundingBox) c.geometry.computeBoundingBox(); b.union(c.geometry.boundingBox.clone().applyMatrix4(c.matrixWorld.clone().premultiply(inv))); } c.children.forEach(walk); };
+  walk(o); return b; }
+const DASH_Y=new THREE.LineDashedMaterial({color:0xf4d23c, dashSize:0.45, gapSize:0.3, depthTest:false, transparent:true, opacity:1});   // sizes and names: yellow
+function dashedLines(pts, matrix, mat=DASH){ const g=new THREE.BufferGeometry().setFromPoints(pts); const l=new THREE.LineSegments(g,mat); l.computeLineDistances(); l.renderOrder=999;
+  l.matrixAutoUpdate=false; if (matrix) l.matrix.copy(matrix); markGroup.add(l); return l; }
+function dashedBox(box, matrix, pad=0.18){ const b=box.clone().expandByScalar(pad), a=b.min, z=b.max, V=(x,y,w)=>new THREE.Vector3(x,y,w);
+  const c=[V(a.x,a.y,a.z),V(z.x,a.y,a.z),V(z.x,z.y,a.z),V(a.x,z.y,a.z),V(a.x,a.y,z.z),V(z.x,a.y,z.z),V(z.x,z.y,z.z),V(a.x,z.y,z.z)];
+  const e=[0,1,1,2,2,3,3,0,4,5,5,6,6,7,7,4,0,4,1,5,2,6,3,7].map(i=>c[i]); return dashedLines(e, matrix); }
+function rollArrow(o, axisLocal, angle){ // curved arrow around a part's axis, at the end nearest the camera, showing which way it rolls
+  o.updateMatrixWorld(true); const a=axisLocal.clone().transformDirection(o.matrixWorld);
+  const len = o.userData.kind==='post'?POST_L:RAIL_L; const e0=o.userData.kind==='post'?new THREE.Vector3(0,-0.6,0):new THREE.Vector3(-RAIL_L/2-0.6,0,0), e1=o.userData.kind==='post'?new THREE.Vector3(0,POST_L+0.6,0):new THREE.Vector3(RAIL_L/2+0.6,0,0);
+  const eye=window.__markCam||camState.pos; const w0=o.localToWorld(e0.clone()), w1=o.localToWorld(e1.clone()); const c = w0.distanceTo(eye)<w1.distanceTo(eye) ? w0 : w1;
+  const pref=new THREE.Vector3(0,1,0).add(eye.clone().sub(c).normalize().multiplyScalar(0.6)); const u=pref.sub(a.clone().multiplyScalar(pref.dot(a))).normalize(), v=new THREE.Vector3().crossVectors(a,u);
+  const r=1.75, n=28, pts=[]; for (let i=0;i<=n;i++){ const b=-angle/2+angle*i/n; pts.push(c.clone().addScaledVector(u,r*Math.cos(b)).addScaledVector(v,r*Math.sin(b))); }
+  const tube=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),40,0.09,6,false),ARROW_MAT); tube.renderOrder=999; markGroup.add(tube);
+  const tip=pts[n], dir=tip.clone().sub(pts[n-1]).normalize(); const cone=new THREE.Mesh(new THREE.ConeGeometry(0.3,0.7,12),ARROW_MAT); cone.renderOrder=999;
+  cone.position.copy(tip).addScaledVector(dir,0.25); cone.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir); markGroup.add(cone);
+  addLabel(Math.round(Math.abs(angle)*180/Math.PI)+'°','deg',c.clone().addScaledVector(u,r+1.1)); }   // how far it turns, on every arrow
+function dimLine(o, a, b, up, text){ // a dimension line beside a part, with end ticks and its length
+  o.updateMatrixWorld(true); const A=new THREE.Vector3(...a), B=new THREE.Vector3(...b), U=new THREE.Vector3(...up).multiplyScalar(0.6);
+  dashedLines([A,B, A.clone().sub(U),A.clone().add(U), B.clone().sub(U),B.clone().add(U)], o.matrixWorld, DASH_Y);
+  addLabel(text,'dim',o.localToWorld(A.clone().lerp(B,0.5).add(U.clone().multiplyScalar(1.8)))); }
+function snapshot(){ scene.updateMatrixWorld(true); const s={};
+  for (const id in parts){ const o=parts[id]; const k=o.userData.kind; if (k==='tool') continue;
+    s[id]={vis:o.visible&&o.userData.home!=='none', par:o.parent===scene?'scene':o.parent===build?'build':(o.parent.userData.id||'?'), m:o.matrix.clone(), w:o.matrixWorld.clone(), home:o.userData.home}; }
+  s.__screws=SCREWS.map(sc=>sc.visible); return s; }
+function changedMarks(before, after){ // outline every part whose place changed, plus the line each nut slides along and each screw goes in on
+  const out=[];
+  for (const id in after){ if (id==='__screws') continue; const A=after[id], B=before[id]; if (!A.vis) continue;
+    const moved = !B || !B.vis || B.par!==A.par || !A.m.equals(B.m); if (!moved) continue;
+    if (B && B.vis && B.par===A.par && A.m.elements.every((v,i)=>Math.abs(v-B.m.elements[i])<1e-4)) continue;
+    out.push(id); }
+  return out; }
+function drawChanged(ids, after, before){
+  for (const id of ids){ const o=parts[id]; const A=after[id]; const k=o.userData.kind; const box=ownLocalBox(o);
+    if (k==='note') continue;
+    dashedBox(box, A.w, k==='nut'?0.08:0.18);
+    if (k==='nut' && (A.par.startsWith('post')||A.par.startsWith('rail'))){ const parW=after[A.par]?after[A.par].w:parts[A.par].matrixWorld; const lp=new THREE.Vector3().setFromMatrixPosition(A.m);
+      const B=before[id]; const from = (B && B.vis && B.par===A.par) ? new THREE.Vector3().setFromMatrixPosition(B.m)         // slid along its groove
+        : A.par.startsWith('post') ? new THREE.Vector3(lp.x,-1.4,lp.z) : new THREE.Vector3(-RAIL_L/2-1.4,lp.y,lp.z);             // in from the open end
+      dashedLines([from,lp], parW); } }
+  SCREWS.forEach((sc,i)=>{ if (after.__screws[i] && !before.__screws[i]){ sc.updateMatrixWorld(true); const m=sc.matrixWorld.clone(); dashedLines([new THREE.Vector3(0,-2.2,0),new THREE.Vector3(0,1.2,0)], m); } }); }
+
+/* ============================== animation core ============================== */
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const anims=new Set();
+// every step animation runs on one clock: real time when shown, a virtual clock when a step is recorded for playing backwards
+let VCLOCK=null;
+let TSCALE=1;
+function tween(dur, fn, grp='step'){ if (grp==='step') dur*=TSCALE; if (reduced) dur=Math.min(dur,120); return new Promise(res=>{ const t0=(grp==='step'&&VCLOCK!==null)?VCLOCK:performance.now();
+  const a={grp, step(now){ const t=dur>0?Math.min(1,(now-t0)/dur):1; fn(ease(t),t); if(t>=1){anims.delete(a);res();} }}; anims.add(a); }); }
+const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+const wait=ms=>reduced? Promise.resolve() : tween(ms,()=>{});      // a pause is a tween too, so cancelling a step stops its pauses
+function worldOf(parent,pos,quat){ parent.updateMatrixWorld(true); const m=new THREE.Matrix4().compose(pos,quat,new THREE.Vector3(1,1,1)).premultiply(parent.matrixWorld); const p=new THREE.Vector3(),q=new THREE.Quaternion(),s=new THREE.Vector3(); m.decompose(p,q,s); return {p,q}; }
+const AXIS={post:new THREE.Vector3(0,1,0), rail:new THREE.Vector3(1,0,0)};
+const MID={post:new THREE.Vector3(0,POST_L/2,0)};               // carry point in the part's own frame
+/* ---------- motion planning: lift straight up, travel at a height that clears everything, set straight down ---------- */
+function segDist(p,a,b){ const ab=b.clone().sub(a); const t=Math.max(0,Math.min(1,p.clone().sub(a).dot(ab)/ab.lengthSq())); return p.distanceTo(a.clone().addScaledVector(ab,t)); }
+function boxDist(p,mn,mx){ return Math.hypot(Math.max(mn.x-p.x,0,p.x-mx.x), Math.max(mn.y-p.y,0,p.y-mx.y), Math.max(mn.z-p.z,0,p.z-mx.z)); }
+const WALLS=[]; for (const t of Object.values(TRAYS)){ const x0=t.x-t.w/2,x1=t.x+t.w/2,z0=t.z-t.d/2,z1=t.z+t.d/2, V=(a,b,c)=>new THREE.Vector3(a,b,c);
+  WALLS.push([V(x0-0.3,-0.15,z0-0.3),V(x1+0.3,1.85,z0+0.3)],[V(x0-0.3,-0.15,z1-0.3),V(x1+0.3,1.85,z1+0.3)],[V(x0-0.3,-0.15,z0-0.3),V(x0+0.3,1.85,z1+0.3)],[V(x1-0.3,-0.15,z0-0.3),V(x1+0.3,1.85,z1+0.3)]); }
+const solidBox=c=>{ const b=new THREE.Box3(); c.traverseVisible(m=>{ if(!m.geometry) return; let q=m; while(q&&q!==c){ if(q.userData&&q.userData.kind==='screw') return; q=q.parent; }
+    if(!m.geometry.boundingBox) m.geometry.computeBoundingBox(); b.union(m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld)); }); return b; };
+function obstacles(skip, withBrackets=true){ // every visible post and rail as its true square prism, and every fitted bracket as a box; not the moving part or what is fixed to it
+  scene.updateMatrixWorld(true); const out=[];
+  for (const id in parts){ const o=parts[id]; const k=o.userData.kind; if(!o.visible||o===skip||o.userData.home==='none') continue;
+    if (k==='post'||k==='rail'){
+      const mn = k==='post'? new THREE.Vector3(-1,0,-1) : new THREE.Vector3(-RAIL_L/2,-1,-1), mx = k==='post'? new THREE.Vector3(1,POST_L,1) : new THREE.Vector3(RAIL_L/2,1,1);
+      out.push({o, inv:o.matrixWorld.clone().invert(), mn, mx}); }
+    else if (withBrackets && k==='bracket' && o.parent && o.parent!==scene && o.parent!==skip){ const b=solidBox(o); if(!b.isEmpty()) out.push({o:o.parent, inv:null, mn:b.min, mx:b.max}); } }
+  const t=parts.tsq; if (t && t!==skip && t.visible && t.userData.home && t.userData.home!=='storage'){ const inv=t.matrixWorld.clone().invert();   // blade, and the head that hooks over the end
+    out.push({o:t, inv, mn:new THREE.Vector3(0,0,-1.5), mx:new THREE.Vector3(30,0.25,1.5)}, {o:t, inv, mn:new THREE.Vector3(-1.2,-1.25,-5), mx:new THREE.Vector3(0,0.25,5)}); }
+  return out; }
+const grid=(xs,ys,zs,r)=>{ const out=[]; for (const x of xs) for (const y of ys) for (const z of zs) out.push({p:new THREE.Vector3(x,y,z),r}); return out; };
+const rng=(a,b,st)=>{ const o=[]; for (let v=a; v<=b+1e-6; v+=st) o.push(v); return o; };
+const TOOL_PROBES={ key:[...rng(0,2.5,0.35).map(y=>({p:new THREE.Vector3(0,y,0),r:0.21})), ...rng(0.35,7,0.35).map(x=>({p:new THREE.Vector3(x,0,0),r:0.21}))],
+  tsq:[...grid(rng(0,30,1),[0.125],[-1.4,-0.7,0,0.7,1.4],0.12), ...grid([-1.05,-0.6,-0.15],[-1.1,-0.6,-0.1,0.1],rng(-4.85,4.85,0.3),0.15)] };
+const EXT_PROBES={ post:grid([-0.95,0,0.95],rng(0,POST_L,0.5),[-0.95,0,0.95],0.05).filter(q=>q.p.x!==0||q.p.z!==0),
+  rail:grid(rng(-RAIL_L/2,RAIL_L/2,0.5),[-0.95,0,0.95],[-0.95,0,0.95],0.05).filter(q=>q.p.y!==0||q.p.z!==0) };
+function probesOf(o){ // points in the part's own frame, with radii, covering the part and the brackets fixed to it
+  const id=o.userData.id, k=o.userData.kind;
+  if (TOOL_PROBES[id]) return TOOL_PROBES[id];
+  if (k==='nut'){ if(!o.geometry.boundingBox) o.geometry.computeBoundingBox(); const b=o.geometry.boundingBox, sz=b.getSize(new THREE.Vector3());
+    const out=[{p:b.getCenter(new THREE.Vector3()), r:Math.min(sz.x,sz.y,sz.z)*0.45}]; for (const x of [b.min.x,b.max.x]) for (const y of [b.min.y,b.max.y]) for (const z of [b.min.z,b.max.z]) out.push({p:new THREE.Vector3(x,y,z),r:0.03}); return out; }
+  const out=[];
+  if (EXT_PROBES[k]) out.push(...EXT_PROBES[k]);
+  o.updateMatrixWorld(true); const inv=o.matrixWorld.clone().invert();
+  const addBox=c=>{ const b=new THREE.Box3(); c.traverseVisible(m=>{ if(!m.geometry) return; let q=m; while(q&&q!==c){ if(q.userData&&q.userData.kind==='screw') return; q=q.parent; }
+      if(!m.geometry.boundingBox) m.geometry.computeBoundingBox(); b.union(m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld)); });
+    if (b.isEmpty()) return; const sz=b.getSize(new THREE.Vector3());
+    for (const x of [b.min.x,b.max.x]) for (const y of [b.min.y,b.max.y]) for (const z of [b.min.z,b.max.z]) out.push({p:new THREE.Vector3(x,y,z).applyMatrix4(inv),r:0.05});
+    out.push({p:b.getCenter(new THREE.Vector3()).applyMatrix4(inv), r:Math.min(sz.x,sz.y,sz.z)*0.45}); };
+  if (k==='bracket'||k==='foot') addBox(o);
+  for (const c of o.children) if (c.userData && c.userData.kind==='bracket' && c.visible) addBox(c);
+  return out; }
+function signedBox(l,mn,mx){ const out=boxDist(l,mn,mx); if (out>0) return out; return -Math.min(l.x-mn.x,mx.x-l.x,l.y-mn.y,mx.y-l.y,l.z-mn.z,mx.z-l.z); }
+function cornersOf(ob){ const out=[]; const m=ob.inv?ob.inv.clone().invert():null; for (const x of [ob.mn.x,ob.mx.x]) for (const y of [ob.mn.y,ob.mx.y]) for (const z of [ob.mn.z,ob.mx.z]){ const v=new THREE.Vector3(x,y,z); if(m) v.applyMatrix4(m); out.push(v); } return out; }
+function clearance(probes, pos, quat, obs, skip, ownBox=null){ // ≥ 0: clear of the floor, the tray walls, every extrusion and fitted bracket
+  const m=new THREE.Matrix4().compose(pos,quat,new THREE.Vector3(1,1,1)); let worst=Infinity; const w=new THREE.Vector3(), l=new THREE.Vector3();
+  for (const pr of probes){ w.copy(pr.p).applyMatrix4(m);
+    worst=Math.min(worst, w.y-pr.r+0.05);
+    for (const wl of WALLS) worst=Math.min(worst, boxDist(w,wl[0],wl[1])-pr.r);
+    for (const ob of obs){ if (skip && skip.has(ob.o)) continue; l.copy(w); if (ob.inv) l.applyMatrix4(ob.inv); worst=Math.min(worst, boxDist(l,ob.mn,ob.mx)-pr.r); } }
+  if (ownBox){ const inv=m.clone().invert(); for (const ob of obs){ if (skip && skip.has(ob.o)) continue; if (!ob.cs) ob.cs=cornersOf(ob); for (const c of ob.cs){ l.copy(c).applyMatrix4(inv); worst=Math.min(worst, signedBox(l,ownBox[0],ownBox[1])-0.05); } } }
+  return worst; }
+function canonQ(q){ const c=q.clone(); const k=[c.w,c.x,c.y,c.z].find(v=>Math.abs(v)>1e-6)||1; if (k<0) c.set(-c.x,-c.y,-c.z,-c.w); return c; }   // one sign for each rotation, so a half-turn always goes the same way
+function makePath(m, ax, q0, q1, wps, rot){ // centre waypoints; rot = leg during which the part turns (null: along the whole path)
+  q0=canonQ(q0); q1=canonQ(q1);
+  const L=[]; let tot=0; for (let i=1;i<wps.length;i++){ const d=wps[i].distanceTo(wps[i-1]); L.push(d); tot+=d; } tot=Math.max(tot,1e-6);
+  const qt=new THREE.Quaternion(), c=new THREE.Vector3(), mq=new THREE.Vector3();
+  const atS=(sd,out)=>{ let sDist=sd, i=0; while(i<L.length-1 && sDist>L[i]){ sDist-=L[i]; i++; } const f=L[i]>0?Math.min(1,sDist/L[i]):1;
+    c.copy(wps[i]).lerp(wps[i+1],f); let done=0; for (let j=0;j<i;j++) done+=L[j]; done+=f*L[i];
+    const r = rot===null ? done/tot : (i<rot?0 : i>rot?1 : f);
+    levelSlerp(q0,q1,qt,r,ax); out.q.copy(qt); out.p.copy(c).sub(mq.copy(m).applyQuaternion(qt)); out.s=done; out.tot=tot; };
+  return {wps, rot, len:tot, atS, at:(u,out)=>atS(ease(u)*tot,out)}; }
+
+/* ---------- recorded paths: every path in the manual was worked out once, offline, and is stored here ---------- */
+const BAKED = /*BAKED*/{"2|post0|1":{"w":[[-57.45,1,-62],[-57.45,4,-62],[-37,4,0.55],[-37,1,0.55]],"r":1,"c":0.05},"2|post1|1":{"w":[[-57.45,1,-57],[-57.45,7,-57],[-30.5,7,0.55],[-30.5,1,0.55]],"r":1,"c":0.05},"2|post2|1":{"w":[[-57.45,1,-52],[-57.45,4,-52],[-24,4,0.55],[-24,1,0.55]],"r":1,"c":0.05},"2|post3|1":{"w":[[-57.45,1,-47],[-57.45,7,-47],[-17.5,7,0.55],[-17.5,1,0.55]],"r":1,"c":0.05},"3|p0x0|1":{"w":[[21.9,0.1,-64.1],[21.9,4.715,-64.1],[-37,4.715,18],[-37,1.715,18]],"r":1,"c":0.02},"3|p1x0|1":{"w":[[30.3,0.1,-64.1],[30.3,4.715,-64.1],[-30.5,4.715,18],[-30.5,1.715,18]],"r":1,"c":0.02},"3|p2x0|1":{"w":[[26.1,0.1,-62.7],[26.1,4.715,-62.7],[-24,4.715,18],[-24,1.715,18]],"r":1,"c":0.02},"3|p3x0|1":{"w":[[21.9,0.1,-61.3],[21.9,4.715,-61.3],[-17.5,4.715,18],[-17.5,1.715,18]],"r":1,"c":0.02},"3|p0x1|1":{"w":[[24.7,0.1,-64.1],[24.7,4.715,-64.1],[-37,4.715,18],[-37,1.715,18]],"r":1,"c":0.02},"3|p1x1|1":{"w":[[33.1,0.1,-64.1],[33.1,4.715,-64.1],[-30.5,4.715,18],[-30.5,1.715,18]],"r":1,"c":0.02},"3|p2x1|1":{"w":[[28.9,0.1,-62.7],[28.9,4.715,-62.7],[-24,4.715,18],[-24,1.715,18]],"r":1,"c":0.02},"3|p3x1|1":{"w":[[24.7,0.1,-61.3],[24.7,4.715,-61.3],[-17.5,4.715,18],[-17.5,1.715,18]],"r":1,"c":0.02},"3|p0x2|1":{"w":[[27.5,0.1,-64.1],[27.5,4.715,-64.1],[-37,4.715,18],[-37,1.715,18]],"r":1,"c":0.02},"3|p1x2|1":{"w":[[23.3,0.1,-62.7],[23.3,4.715,-62.7],[-30.5,4.715,18],[-30.5,1.715,18]],"r":1,"c":0.02},"3|p2x2|1":{"w":[[31.7,0.1,-62.7],[31.7,4.715,-62.7],[-24,4.715,18],[-24,1.715,18]],"r":1,"c":0.02},"3|p3x2|1":{"w":[[27.5,0.1,-61.3],[27.5,4.715,-61.3],[-17.5,4.715,18],[-17.5,1.715,18]],"r":1,"c":0.02},"5|p0z0|1":{"w":[[23.3,0.1,-64.1],[23.3,4.715,-64.1],[-37,4.715,18],[-37,1.715,18]],"r":1,"c":0.02},"5|p1z0|1":{"w":[[31.7,0.1,-64.1],[31.7,4.715,-64.1],[-30.5,4.715,18],[-30.5,1.715,18]],"r":1,"c":0.02},"5|p2z0|1":{"w":[[27.5,0.1,-62.7],[27.5,4.715,-62.7],[-24,4.715,18],[-24,1.715,18]],"r":1,"c":0.02},"5|p3z0|1":{"w":[[23.3,0.1,-61.3],[23.3,4.715,-61.3],[-17.5,4.715,18],[-17.5,1.715,18]],"r":1,"c":0.02},"5|p0z1|1":{"w":[[26.1,0.1,-64.1],[26.1,4.715,-64.1],[-37,4.715,18],[-37,1.715,18]],"r":1,"c":0.02},"5|p1z1|1":{"w":[[21.9,0.1,-62.7],[21.9,4.715,-62.7],[-30.5,4.715,18],[-30.5,1.715,18]],"r":1,"c":0.02},"5|p2z1|1":{"w":[[30.3,0.1,-62.7],[30.3,4.715,-62.7],[-24,4.715,18],[-24,1.715,18]],"r":1,"c":0.02},"5|p3z1|1":{"w":[[26.1,0.1,-61.3],[26.1,4.715,-61.3],[-17.5,4.715,18],[-17.5,1.715,18]],"r":1,"c":0.02},"5|p0z2|1":{"w":[[28.9,0.1,-64.1],[28.9,4.715,-64.1],[-37,4.715,18],[-37,1.715,18]],"r":1,"c":0.02},"5|p1z2|1":{"w":[[24.7,0.1,-62.7],[24.7,4.715,-62.7],[-30.5,4.715,18],[-30.5,1.715,18]],"r":1,"c":0.02},"5|p2z2|1":{"w":[[33.1,0.1,-62.7],[33.1,4.715,-62.7],[-24,4.715,18],[-24,1.715,18]],"r":1,"c":0.02},"5|p3z2|1":{"w":[[28.9,0.1,-61.3],[28.9,4.715,-61.3],[-17.5,4.715,18],[-17.5,1.715,18]],"r":1,"c":0.02},"7|rail0|1":{"w":[[-24,1,-61],[-24,19,-61],[-27.25,19,-13.9],[-27.25,3,-13.9]],"r":1,"c":0.05},"8|b_p0x|1":{"w":[[22.4,0.16,-45.6],[22.4,7,-45.6],[-33.5,7,-12.9],[-33.5,1,-12.9]],"r":1,"c":-0.05},"8|b_p0z|1":{"w":[[26.8,0.16,-45.6],[26.8,7.5,-45.6],[-37,7.5,-12.9],[-37,4.5,-12.9]],"r":1,"c":0},"8|b_p1x|1":{"w":[[31.2,0.16,-45.6],[31.2,7,-45.6],[-27,7,-12.9],[-27,1,-12.9]],"r":1,"c":-0.05},"8|b_p1z|1":{"w":[[35.6,0.16,-45.6],[35.6,7.5,-45.6],[-30.5,7.5,-12.9],[-30.5,4.5,-12.9]],"r":1,"c":0},"8|b_p2x|1":{"w":[[40,0.16,-45.6],[40,7,-45.6],[-20.5,7,-12.9],[-20.5,1,-12.9]],"r":1,"c":-0.05},"8|b_p2z|1":{"w":[[44.4,0.16,-45.6],[44.4,7.5,-45.6],[-24,7.5,-12.9],[-24,4.5,-12.9]],"r":1,"c":0},"8|b_p3x|1":{"w":[[48.8,0.16,-45.6],[48.8,4,-45.6],[-14,4,-12.9],[-14,1,-12.9]],"r":1,"c":0},"8|b_p3z|1":{"w":[[53.2,0.16,-45.6],[53.2,7.5,-45.6],[-17.5,7.5,-12.9],[-17.5,4.5,-12.9]],"r":1,"c":0},"8|keygrip|1":{"mode":0,"th0":3.926991,"W":0.785398,"backPre":0.6,"bestC":0.26},"8|key|1":{"w":[[1,0.2,-39],[1,7,-39],[-31.97,7,-11.75],[-31.97,1,-11.75]],"r":1,"c":0.04},"8|keygrip|2":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"8|key|2":{"w":[[-32.37,1,-11.75],[-32.37,10.43,-11.75],[-37,10.43,-11.75],[-37,8.43,-11.75]],"r":1,"c":0.66},"8|keygrip|3":{"mode":0,"th0":3.926991,"W":0.785398,"backPre":0.6,"bestC":0.26},"8|key|3":{"w":[[-37,8.03,-11.75],[-37,10.03,-11.75],[-25.47,10.03,-11.75],[-25.47,1,-11.75]],"r":1,"c":0.26},"8|keygrip|4":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"8|key|4":{"w":[[-25.87,1,-11.75],[-25.87,10.43,-11.75],[-30.5,10.43,-11.75],[-30.5,8.43,-11.75]],"r":1,"c":0.66},"8|keygrip|5":{"mode":0,"th0":3.926991,"W":0.785398,"backPre":0.6,"bestC":0.26},"8|key|5":{"w":[[-30.5,8.03,-11.75],[-30.5,10.03,-11.75],[-18.97,10.03,-11.75],[-18.97,1,-11.75]],"r":1,"c":0.26},"8|keygrip|6":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"8|key|6":{"w":[[-19.37,1,-11.75],[-19.37,10.43,-11.75],[-24,10.43,-11.75],[-24,8.43,-11.75]],"r":1,"c":0.66},"8|keygrip|7":{"mode":0,"th0":4.45059,"W":0.785398,"backPre":3,"bestC":0.84},"8|key|7":{"w":[[-24,8.03,-11.75],[-10.07,1,-11.75]],"r":null,"c":0.336},"8|keygrip|8":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"8|key|8":{"w":[[-10.47,1,-11.75],[-17.5,8.43,-11.75]],"r":null,"c":0.84},"8|key|9":{"w":[[-17.5,8.03,-11.75],[-17.5,11.03,-11.75],[1,11.03,-39],[1,0.2,-39]],"r":1,"c":0.04},"9|rail0|1":{"w":[[-27.25,3,-13.9],[-27.25,19,-13.9],[-24,19,-61],[-24,1,-61]],"r":1,"c":0.05},"9|n_head0|1":{"w":[[79,0.1,-41],[-37,2.03,-9.7]],"r":null,"c":Infinity},"9|n_head1|1":{"w":[[79,0.14,-41],[-30.5,2.03,-9.7]],"r":null,"c":Infinity},"9|n_head2|1":{"w":[[79,0.18,-41],[-24,2.03,-9.7]],"r":null,"c":Infinity},"9|n_head3|1":{"w":[[79,0.22,-41],[-17.5,2.03,-9.7]],"r":null,"c":Infinity},"10|post0|1":{"w":[[-37,1,0.55],[-37,4,0.55],[-57.45,4,-62],[-57.45,1,-62]],"r":1,"c":0},"10|post1|1":{"w":[[-30.5,1,0.55],[-30.5,11,0.55],[-57.45,11,-57],[-57.45,1,-57]],"r":1,"c":0},"10|post2|1":{"w":[[-24,1,0.55],[-24,4,0.55],[-57.45,4,-52],[-57.45,1,-52]],"r":1,"c":0},"10|post3|1":{"w":[[-17.5,1,0.55],[-17.5,11,0.55],[-57.45,11,-47],[-57.45,1,-47]],"r":1,"c":0},"11|rail0|1":{"w":[[-24,1,-61],[-24,4,-61],[-4,4,-11],[-4,1,-11]],"r":1,"c":0.05},"11|rail6|1":{"w":[[-1,1,-61],[-1,4,-61],[20,4,-11],[20,1,-11]],"r":1,"c":0.05},"11|rail1|1":{"w":[[-24,1,-58],[-24,4,-58],[-4,4,-6],[-4,1,-6]],"r":1,"c":0.05},"11|rail7|1":{"w":[[-1,1,-58],[-1,4,-58],[20,4,-6],[20,1,-6]],"r":1,"c":0.05},"11|rail2|1":{"w":[[-24,1,-55],[-24,4,-55],[-4,4,-1],[-4,1,-1]],"r":1,"c":0.05},"11|rail8|1":{"w":[[-1,1,-55],[-1,4,-55],[20,4,-1],[20,1,-1]],"r":1,"c":0.05},"11|rail3|1":{"w":[[-24,1,-52],[-24,4,-52],[-4,4,4],[-4,1,4]],"r":1,"c":0.05},"11|rail9|1":{"w":[[-1,1,-52],[-1,4,-52],[20,4,4],[20,1,4]],"r":1,"c":0.05},"11|rail4|1":{"w":[[-24,1,-49],[-24,4,-49],[-4,4,9],[-4,1,9]],"r":1,"c":0.05},"11|rail10|1":{"w":[[-1,1,-49],[-1,4,-49],[20,4,9],[20,1,9]],"r":1,"c":0.05},"11|rail5|1":{"w":[[-24,1,-46],[-24,4,-46],[-4,4,14],[-4,1,14]],"r":1,"c":0.05},"11|rail11|1":{"w":[[-1,1,-46],[-1,4,-46],[20,4,14],[20,1,14]],"r":1,"c":0.05},"12|r0a2|1":{"w":[[33.1,0.1,-61.3],[33.1,4.715,-61.3],[-16.16,4.715,-11],[-16.16,1.715,-11]],"r":1,"c":0.02},"12|r1a2|1":{"w":[[26.1,0.1,-59.9],[26.1,4.715,-59.9],[-16.16,4.715,-6],[-16.16,1.715,-6]],"r":1,"c":0.02},"12|r2a2|1":{"w":[[31.7,0.1,-59.9],[31.7,4.715,-59.9],[-16.16,4.715,-1],[-16.16,1.715,-1]],"r":1,"c":0.02},"12|r3a2|1":{"w":[[24.7,0.1,-58.5],[24.7,4.715,-58.5],[-16.16,4.715,4],[-16.16,1.715,4]],"r":1,"c":0.02},"12|r4a2|1":{"w":[[30.3,0.1,-58.5],[30.3,4.715,-58.5],[-16.16,4.715,9],[-16.16,1.715,9]],"r":1,"c":0.02},"12|r5a2|1":{"w":[[23.3,0.1,-57.1],[23.3,4.715,-57.1],[-16.16,4.715,14],[-16.16,1.715,14]],"r":1,"c":0.02},"12|r6a2|1":{"w":[[33.1,0.1,-57.1],[33.1,4.715,-57.1],[7.84,4.715,-11],[7.84,1.715,-11]],"r":1,"c":0.02},"12|r7a2|1":{"w":[[26.1,0.1,-55.7],[26.1,4.715,-55.7],[7.84,4.715,-6],[7.84,1.715,-6]],"r":1,"c":0.02},"12|r8a2|1":{"w":[[31.7,0.1,-55.7],[31.7,4.715,-55.7],[7.84,4.715,-1],[7.84,1.715,-1]],"r":1,"c":0.02},"12|r9a2|1":{"w":[[24.7,0.1,-54.3],[24.7,4.715,-54.3],[7.84,4.715,4],[7.84,1.715,4]],"r":1,"c":0.02},"12|r10a2|1":{"w":[[30.3,0.1,-54.3],[30.3,4.715,-54.3],[7.84,4.715,9],[7.84,1.715,9]],"r":1,"c":0.02},"12|r11a2|1":{"w":[[23.3,0.1,-52.9],[23.3,4.715,-52.9],[7.84,4.715,14],[7.84,1.715,14]],"r":1,"c":0.02},"12|r0a1|1":{"w":[[31.7,0.1,-61.3],[31.7,4.715,-61.3],[-16.16,4.715,-11],[-16.16,1.715,-11]],"r":1,"c":0.02},"12|r1a1|1":{"w":[[24.7,0.1,-59.9],[24.7,4.715,-59.9],[-16.16,4.715,-6],[-16.16,1.715,-6]],"r":1,"c":0.02},"12|r2a1|1":{"w":[[30.3,0.1,-59.9],[30.3,4.715,-59.9],[-16.16,4.715,-1],[-16.16,1.715,-1]],"r":1,"c":0.02},"12|r3a1|1":{"w":[[23.3,0.1,-58.5],[23.3,4.715,-58.5],[-16.16,4.715,4],[-16.16,1.715,4]],"r":1,"c":0.02},"12|r4a1|1":{"w":[[28.9,0.1,-58.5],[28.9,4.715,-58.5],[-16.16,4.715,9],[-16.16,1.715,9]],"r":1,"c":0.02},"12|r5a1|1":{"w":[[21.9,0.1,-57.1],[21.9,4.715,-57.1],[-16.16,4.715,14],[-16.16,1.715,14]],"r":1,"c":0.02},"12|r6a1|1":{"w":[[31.7,0.1,-57.1],[31.7,4.715,-57.1],[7.84,4.715,-11],[7.84,1.715,-11]],"r":1,"c":0.02},"12|r7a1|1":{"w":[[24.7,0.1,-55.7],[24.7,4.715,-55.7],[7.84,4.715,-6],[7.84,1.715,-6]],"r":1,"c":0.02},"12|r8a1|1":{"w":[[30.3,0.1,-55.7],[30.3,4.715,-55.7],[7.84,4.715,-1],[7.84,1.715,-1]],"r":1,"c":0.02},"12|r9a1|1":{"w":[[23.3,0.1,-54.3],[23.3,4.715,-54.3],[7.84,4.715,4],[7.84,1.715,4]],"r":1,"c":0.02},"12|r10a1|1":{"w":[[28.9,0.1,-54.3],[28.9,4.715,-54.3],[7.84,4.715,9],[7.84,1.715,9]],"r":1,"c":0.02},"12|r11a1|1":{"w":[[21.9,0.1,-52.9],[21.9,4.715,-52.9],[7.84,4.715,14],[7.84,1.715,14]],"r":1,"c":0.02},"12|r0a0|1":{"w":[[30.3,0.1,-61.3],[30.3,4.715,-61.3],[-16.16,4.715,-11],[-16.16,1.715,-11]],"r":1,"c":0.02},"12|r1a0|1":{"w":[[23.3,0.1,-59.9],[23.3,4.715,-59.9],[-16.16,4.715,-6],[-16.16,1.715,-6]],"r":1,"c":0.02},"12|r2a0|1":{"w":[[28.9,0.1,-59.9],[28.9,4.715,-59.9],[-16.16,4.715,-1],[-16.16,1.715,-1]],"r":1,"c":0.02},"12|r3a0|1":{"w":[[21.9,0.1,-58.5],[21.9,4.715,-58.5],[-16.16,4.715,4],[-16.16,1.715,4]],"r":1,"c":0.02},"12|r4a0|1":{"w":[[27.5,0.1,-58.5],[27.5,4.715,-58.5],[-16.16,4.715,9],[-16.16,1.715,9]],"r":1,"c":0.02},"12|r5a0|1":{"w":[[33.1,0.1,-58.5],[33.1,4.715,-58.5],[-16.16,4.715,14],[-16.16,1.715,14]],"r":1,"c":0.02},"12|r6a0|1":{"w":[[30.3,0.1,-57.1],[30.3,4.715,-57.1],[7.84,4.715,-11],[7.84,1.715,-11]],"r":1,"c":0.02},"12|r7a0|1":{"w":[[23.3,0.1,-55.7],[23.3,4.715,-55.7],[7.84,4.715,-6],[7.84,1.715,-6]],"r":1,"c":0.02},"12|r8a0|1":{"w":[[28.9,0.1,-55.7],[28.9,4.715,-55.7],[7.84,4.715,-1],[7.84,1.715,-1]],"r":1,"c":0.02},"12|r9a0|1":{"w":[[21.9,0.1,-54.3],[21.9,4.715,-54.3],[7.84,4.715,4],[7.84,1.715,4]],"r":1,"c":0.02},"12|r10a0|1":{"w":[[27.5,0.1,-54.3],[27.5,4.715,-54.3],[7.84,4.715,9],[7.84,1.715,9]],"r":1,"c":0.02},"12|r11a0|1":{"w":[[33.1,0.1,-54.3],[33.1,4.715,-54.3],[7.84,4.715,14],[7.84,1.715,14]],"r":1,"c":0.02},"14|r0b|1":{"w":[[21.9,0.1,-59.9],[21.9,4.715,-59.9],[-16.16,4.715,-11],[-16.16,1.715,-11]],"r":1,"c":0.02},"14|r1b|1":{"w":[[27.5,0.1,-59.9],[27.5,4.715,-59.9],[-16.16,4.715,-6],[-16.16,1.715,-6]],"r":1,"c":0.02},"14|r2b|1":{"w":[[33.1,0.1,-59.9],[33.1,4.715,-59.9],[-16.16,4.715,-1],[-16.16,1.715,-1]],"r":1,"c":0.02},"14|r3b|1":{"w":[[26.1,0.1,-58.5],[26.1,4.715,-58.5],[-16.16,4.715,4],[-16.16,1.715,4]],"r":1,"c":0.02},"14|r4b|1":{"w":[[31.7,0.1,-58.5],[31.7,4.715,-58.5],[-16.16,4.715,9],[-16.16,1.715,9]],"r":1,"c":0.02},"14|r5b|1":{"w":[[24.7,0.1,-57.1],[24.7,4.715,-57.1],[-16.16,4.715,14],[-16.16,1.715,14]],"r":1,"c":0.02},"14|r6b|1":{"w":[[21.9,0.1,-55.7],[21.9,4.715,-55.7],[7.84,4.715,-11],[7.84,1.715,-11]],"r":1,"c":0.02},"14|r7b|1":{"w":[[27.5,0.1,-55.7],[27.5,4.715,-55.7],[7.84,4.715,-6],[7.84,1.715,-6]],"r":1,"c":0.02},"14|r8b|1":{"w":[[33.1,0.1,-55.7],[33.1,4.715,-55.7],[7.84,4.715,-1],[7.84,1.715,-1]],"r":1,"c":0.02},"14|r9b|1":{"w":[[26.1,0.1,-54.3],[26.1,4.715,-54.3],[7.84,4.715,4],[7.84,1.715,4]],"r":1,"c":0.02},"14|r10b|1":{"w":[[31.7,0.1,-54.3],[31.7,4.715,-54.3],[7.84,4.715,9],[7.84,1.715,9]],"r":1,"c":0.02},"14|r11b|1":{"w":[[24.7,0.1,-52.9],[24.7,4.715,-52.9],[7.84,4.715,14],[7.84,1.715,14]],"r":1,"c":0.02},"15|r5c0|1":{"w":[[26.1,0.1,-57.1],[26.1,4.715,-57.1],[-16.16,4.715,14],[-16.16,1.715,14]],"r":1,"c":0.02},"15|r5c1|1":{"w":[[27.5,0.1,-57.1],[27.5,4.715,-57.1],[-16.16,4.715,14],[-16.16,1.715,14]],"r":1,"c":0.02},"15|r5c2|1":{"w":[[28.9,0.1,-57.1],[28.9,4.715,-57.1],[-16.16,4.715,14],[-16.16,1.715,14]],"r":1,"c":0.02},"15|n_box|1":{"w":[[79,0.06,-41],[-12.3,2.03,14]],"r":null,"c":Infinity},"18|rail0|1":{"w":[[-4,1,-11],[-4,4,-11],[-28,4,-26],[-28,1,-26]],"r":1,"c":0.05},"18|rail1|1":{"w":[[-4,1,-6],[-4,4,-6],[-28,4,-23.2],[-28,1,-23.2]],"r":1,"c":0.05},"18|rail2|1":{"w":[[-4,1,-1],[-4,7,-1],[-28,7,-20.4],[-28,1,-20.4]],"r":1,"c":0.05},"18|rail3|1":{"w":[[-4,1,4],[-4,7,4],[-28,7,-17.6],[-28,1,-17.6]],"r":1,"c":0.05},"18|n_aside|1":{"w":[[79,0.26,-41],[-28,0.06,-14]],"r":null,"c":Infinity},"19|b_r4L|1":{"w":[[22.4,0.16,-41.4],[22.4,7.5,-41.4],[-14.16,7.5,9],[-14.16,4.5,9]],"r":1,"c":0},"19|b_r4R|1":{"w":[[26.8,0.16,-41.4],[26.8,7.5,-41.4],[6.16,7.5,9],[6.16,4.5,9]],"r":1,"c":0},"19|b_r5L|1":{"w":[[31.2,0.16,-41.4],[31.2,7.5,-41.4],[-14.16,7.5,14],[-14.16,4.5,14]],"r":1,"c":0},"19|b_r5R|1":{"w":[[35.6,0.16,-41.4],[35.6,7.5,-41.4],[6.16,7.5,14],[6.16,4.5,14]],"r":1,"c":0},"19|b_r6L|1":{"w":[[40,0.16,-41.4],[40,7.5,-41.4],[9.84,7.5,-11],[9.84,4.5,-11]],"r":1,"c":0},"19|b_r6R|1":{"w":[[44.4,0.16,-41.4],[44.4,7.5,-41.4],[30.16,7.5,-11],[30.16,4.5,-11]],"r":1,"c":0},"19|b_r7L|1":{"w":[[48.8,0.16,-41.4],[48.8,7.5,-41.4],[9.84,7.5,-6],[9.84,4.5,-6]],"r":1,"c":0},"19|b_r7R|1":{"w":[[53.2,0.16,-41.4],[53.2,7.5,-41.4],[30.16,7.5,-6],[30.16,4.5,-6]],"r":1,"c":0},"19|b_r8L|1":{"w":[[22.4,0.16,-37.2],[22.4,7.5,-37.2],[9.84,7.5,-1],[9.84,4.5,-1]],"r":1,"c":0},"19|b_r8R|1":{"w":[[26.8,0.16,-37.2],[26.8,7.5,-37.2],[30.16,7.5,-1],[30.16,4.5,-1]],"r":1,"c":0},"19|b_r9L|1":{"w":[[31.2,0.16,-37.2],[31.2,7.5,-37.2],[9.84,7.5,4],[9.84,4.5,4]],"r":1,"c":0},"19|b_r9R|1":{"w":[[35.6,0.16,-37.2],[35.6,7.5,-37.2],[30.16,7.5,4],[30.16,4.5,4]],"r":1,"c":0},"19|b_r10L|1":{"w":[[40,0.16,-37.2],[40,7.5,-37.2],[9.84,7.5,9],[9.84,4.5,9]],"r":1,"c":0},"19|b_r10R|1":{"w":[[44.4,0.16,-37.2],[44.4,7.5,-37.2],[30.16,7.5,9],[30.16,4.5,9]],"r":1,"c":0},"19|b_r11L|1":{"w":[[48.8,0.16,-37.2],[48.8,7.5,-37.2],[9.84,7.5,14],[9.84,4.5,14]],"r":1,"c":0},"19|b_r11R|1":{"w":[[53.2,0.16,-37.2],[53.2,7.5,-37.2],[30.16,7.5,14],[30.16,4.5,14]],"r":1,"c":0},"19|keygrip|1":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":1.47},"19|key|1":{"w":[[1,0.2,-39],[1,2.2,-39],[-13.01,10.43,9],[-13.01,8.43,9]],"r":1,"c":0.04},"19|keygrip|2":{"mode":0,"th0":0.523599,"W":0.785398,"backPre":3,"bestC":1.47},"19|key|2":{"w":[[-13.01,8.03,9],[5.01,8.43,9]],"r":null,"c":3.37},"19|keygrip|3":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":1.47},"19|key|3":{"w":[[5.01,8.03,9],[-13.01,8.43,14]],"r":null,"c":3.37},"19|keygrip|4":{"mode":0,"th0":0.523599,"W":0.785398,"backPre":3,"bestC":1.47},"19|key|4":{"w":[[-13.01,8.03,14],[5.01,8.43,14]],"r":null,"c":3.37},"19|keygrip|5":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":1.47},"19|key|5":{"w":[[5.01,8.03,14],[10.99,8.43,-11]],"r":null,"c":3.37},"19|keygrip|6":{"mode":0,"th0":0.523599,"W":0.785398,"backPre":3,"bestC":1.47},"19|key|6":{"w":[[10.99,8.03,-11],[29.01,8.43,-11]],"r":null,"c":3.37},"19|keygrip|7":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":1.47},"19|key|7":{"w":[[29.01,8.03,-11],[10.99,8.43,-6]],"r":null,"c":3.37},"19|keygrip|8":{"mode":0,"th0":0.523599,"W":0.785398,"backPre":3,"bestC":1.47},"19|key|8":{"w":[[10.99,8.03,-6],[29.01,8.43,-6]],"r":null,"c":3.37},"19|keygrip|9":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":1.47},"19|key|9":{"w":[[29.01,8.03,-6],[10.99,8.43,-1]],"r":null,"c":3.37},"19|keygrip|10":{"mode":0,"th0":0.523599,"W":0.785398,"backPre":3,"bestC":1.47},"19|key|10":{"w":[[10.99,8.03,-1],[29.01,8.43,-1]],"r":null,"c":3.37},"19|keygrip|11":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":1.47},"19|key|11":{"w":[[29.01,8.03,-1],[10.99,8.43,4]],"r":null,"c":3.37},"19|keygrip|12":{"mode":0,"th0":0.523599,"W":0.785398,"backPre":3,"bestC":1.47},"19|key|12":{"w":[[10.99,8.03,4],[29.01,8.43,4]],"r":null,"c":3.37},"19|keygrip|13":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":1.47},"19|key|13":{"w":[[29.01,8.03,4],[10.99,8.43,9]],"r":null,"c":3.37},"19|keygrip|14":{"mode":0,"th0":0.523599,"W":0.785398,"backPre":3,"bestC":1.47},"19|key|14":{"w":[[10.99,8.03,9],[29.01,8.43,9]],"r":null,"c":3.37},"19|keygrip|15":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":1.47},"19|key|15":{"w":[[29.01,8.03,9],[10.99,8.43,14]],"r":null,"c":3.37},"19|keygrip|16":{"mode":0,"th0":0.523599,"W":0.785398,"backPre":3,"bestC":1.47},"19|key|16":{"w":[[10.99,8.03,14],[29.01,8.43,14]],"r":null,"c":3.37},"19|key|17":{"w":[[29.01,8.03,14],[29.01,11.03,14],[1,11.03,-39],[1,0.2,-39]],"r":1,"c":0.04},"20|rail5|1":{"w":[[-4,1,14],[-4,11,14],[30,11,-25],[30,1,-25]],"r":1,"c":0},"20|rail4|1":{"w":[[-4,1,9],[-4,4,9],[-24,4,-49],[-24,1,-49]],"r":1,"c":0.05},"20|rail6|1":{"w":[[20,1,-11],[20,4,-11],[-1,4,-61],[-1,1,-61]],"r":1,"c":0.05},"20|rail7|1":{"w":[[20,1,-6],[20,7,-6],[-1,7,-58],[-1,1,-58]],"r":1,"c":0.05},"20|rail8|1":{"w":[[20,1,-1],[20,11,-1],[-1,11,-55],[-1,1,-55]],"r":1,"c":0.05},"20|rail9|1":{"w":[[20,1,4],[20,11,4],[-1,11,-52],[-1,1,-52]],"r":1,"c":0.05},"20|rail10|1":{"w":[[20,1,9],[20,17,9],[-1,17,-49],[-1,1,-49]],"r":1,"c":0.05},"20|rail11|1":{"w":[[20,1,14],[20,17,14],[-1,17,-46],[-1,1,-46]],"r":1,"c":0.05},"21|n_aside|1":{"w":[[-28,0.06,-14],[79,0.26,-41]],"r":null,"c":Infinity},"21|rail0|1":{"w":[[-28,1,-26],[-28,4,-26],[0,4,-4.84],[0,1,-4.84]],"r":1,"c":0.05},"21|rail1|1":{"w":[[-28,1,-23.2],[-28,4,-23.2],[0,4,-27.16],[0,1,-27.16]],"r":1,"c":0.05},"21|rail2|1":{"w":[[-28,1,-20.4],[-28,4,-20.4],[-11.16,4,-16],[-11.16,1,-16]],"r":1,"c":-0.05},"21|rail3|1":{"w":[[-28,1,-17.6],[-28,4,-17.6],[11.16,4,-16],[11.16,1,-16]],"r":1,"c":0.05},"21|n_top|1":{"w":[[79,0.3,-41],[19,0.06,-16]],"r":null,"c":Infinity},"22|n_head0|1":{"w":[[-67.7,1,-60.97],[79,0.1,-41]],"r":null,"c":Infinity},"22|stand|1":{"H":[-15.40264,5,-31.40264],"k":[0,0,1],"q":[0.5,0.5,0.5,-0.5]},"22|post0|1":{"w":[[-57.45,1,-62],[-57.45,8,-62],[-30.8526,8,-31.4026],[-30.8526,5,-31.4026]],"r":1,"c":0},"23|keygrip|1":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"23|key|1":{"w":[[1,0.2,-39],[1,0.2,-41],[1,34.9,-41],[-16.16,34.9,-25.01],[-16.16,8.43,-25.01],[-11.16,8.43,-25.01]],"r":2,"c":0.04},"23|keygrip|2":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"23|key|2":{"w":[[-11.16,8.03,-25.01],[-11.16,42.43,-25.01],[-9.01,42.43,-27.16],[-9.01,8.43,-27.16]],"r":1,"c":0.94},"23|key|3":{"w":[[-9.01,8.03,-27.16],[-9.01,11.03,-27.16],[1,11.03,-39],[1,0.2,-39]],"r":1,"c":0.04},"24|n_head1|1":{"w":[[-67.7,1,-55.97],[79,0.14,-41]],"r":null,"c":Infinity},"24|stand|1":{"H":[15.40264,5,-31.40264],"k":[0,0,-1],"q":[0,0,0.7071068,0.7071068]},"24|post1|1":{"w":[[-57.45,1,-57],[-57.45,8,-57],[30.8526,8,-31.4026],[30.8526,5,-31.4026]],"r":1,"c":0},"24|keygrip|1":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"24|key|1":{"w":[[1,0.2,-39],[1,4.2,-39],[9.01,12.43,-27.16],[9.01,8.43,-27.16]],"r":1,"c":0.04},"24|keygrip|2":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"24|key|2":{"w":[[9.01,8.03,-27.16],[9.01,42.43,-27.16],[11.16,42.43,-25.01],[11.16,8.43,-25.01]],"r":1,"c":0.94},"24|key|3":{"w":[[11.16,8.03,-25.01],[16.16,8.03,-25.01],[16.16,34.9,-25.01],[1,34.9,-41],[1,0.2,-41],[1,0.2,-39]],"r":2,"c":0.04},"24|n_head3|1":{"w":[[-67.7,1,-45.97],[79,0.22,-41]],"r":null,"c":Infinity},"24|stand|2":{"H":[-15.40264,5,-0.59736],"k":[0,0,1],"q":[0.7071068,0.7071068,0,0]},"24|post3|1":{"w":[[-57.45,1,-47],[-57.45,8,-47],[-30.8526,8,-0.5974],[-30.8526,5,-0.5974]],"r":1,"c":0},"24|keygrip|3":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"24|key|4":{"w":[[1,0.2,-39],[1,2.2,-39],[-9.01,10.43,-4.84],[-9.01,8.43,-4.84]],"r":1,"c":0.04},"24|keygrip|4":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"24|key|5":{"w":[[-9.01,8.03,-4.84],[-9.01,42.43,-4.84],[-11.16,42.43,-6.99],[-11.16,8.43,-6.99]],"r":1,"c":0.94},"24|key|6":{"w":[[-11.16,8.03,-6.99],[-11.16,11.03,-6.99],[1,11.03,-39],[1,0.2,-39]],"r":1,"c":0.04},"24|n_head2|1":{"w":[[-67.7,1,-50.97],[79,0.18,-41]],"r":null,"c":Infinity},"24|stand|3":{"H":[15.40264,5,-0.59736],"k":[0,0,-1],"q":[0.5,-0.5,-0.5,-0.5]},"24|post2|1":{"w":[[-57.45,1,-52],[-57.45,39,-52],[30.8526,39,-0.5974],[30.8526,5,-0.5974]],"r":1,"c":0},"24|keygrip|5":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"24|key|7":{"w":[[1,0.2,-39],[1,2.2,-39],[11.16,10.43,-6.99],[11.16,8.43,-6.99]],"r":1,"c":0.04},"24|keygrip|6":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"24|key|8":{"w":[[11.16,8.03,-6.99],[11.16,42.43,-6.99],[9.01,42.43,-4.84],[9.01,8.43,-4.84]],"r":1,"c":0.94},"24|key|9":{"w":[[9.01,8.03,-4.84],[9.01,11.03,-4.84],[1,11.03,-39],[1,0.2,-39]],"r":1,"c":0.04},"26|n_top|1":{"w":[[19,0.06,-16],[79,0.3,-41]],"r":null,"c":Infinity},"27|n_back|1":{"w":[[79,0.34,-41],[20,0.06,-12]],"r":null,"c":Infinity},"29|rail5|1":{"w":[[30,1,-25],[30,31,-25],[0,31,11.66],[0,1,11.66]],"r":1,"c":-0.05},"29|tsq|1":{"w":[[-39,1.25,-39.5],[-39,6.8,-39.5],[0,6.8,0.16],[0,3.8,0.16]],"r":1,"c":0.045},"29|keygrip|1":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.84},"29|key|1":{"w":[[1,0.2,-39],[1,7,-39],[3.73,7,12.31],[3.73,1,12.31]],"r":1,"c":0.04},"29|keygrip|2":{"mode":0,"th0":3.926991,"W":0.785398,"backPre":3,"bestC":0.84},"29|key|2":{"w":[[4.13,1,12.31],[4.13,3,12.31],[-3.73,3,12.31],[-3.73,1,12.31]],"r":1,"c":0.54},"29|key|3":{"w":[[-4.13,1,12.31],[-4.13,4,12.31],[1,4,-39],[1,0.2,-39]],"r":1,"c":0.04},"30|tsq|1":{"w":[[0,3.8,0.16],[0,27.8,0.16],[-14,27.8,-18],[-14,1.25,-18]],"r":1,"c":0.045},"30|rail8|1":{"w":[[-1,1,-55],[-1,31,-55],[0,31,24.66],[0,1,24.66]],"r":1,"c":-0.05},"30|tsq|2":{"w":[[-14,1.25,-18],[-14,27.8,-18],[0,27.8,0.16],[0,3.8,0.16]],"r":1,"c":0.045},"30|keygrip|1":{"mode":0,"th0":3.926991,"W":0.785398,"backPre":3,"bestC":0.84},"30|key|1":{"w":[[1,0.2,-39],[1,7,-39],[3.73,7,21.01],[3.73,1,21.01]],"r":1,"c":0.04},"30|keygrip|2":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.84},"30|key|2":{"w":[[4.13,1,21.01],[4.13,3,21.01],[-3.73,3,21.01],[-3.73,1,21.01]],"r":1,"c":0.54},"30|key|3":{"w":[[-4.13,1,21.01],[-4.13,4,21.01],[1,4,-39],[1,0.2,-39]],"r":1,"c":0.04},"31|tsq|1":{"w":[[0,3.8,0.16],[0,27.8,0.16],[-14,27.8,-18],[-14,1.25,-18]],"r":1,"c":0.045},"31|n_back|1":{"w":[[20,0.06,-12],[79,0.34,-41]],"r":null,"c":Infinity},"32|rail6|1":{"w":[[-1,1,-61],[-1,31,-61],[0,31,11.66],[0,1,11.66]],"r":1,"c":-0.05},"32|tsq|1":{"w":[[-14,1.25,-18],[-14,27.8,-18],[0,27.8,0.16],[0,3.8,0.16]],"r":1,"c":0.045},"32|keygrip|1":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.84},"32|key|1":{"w":[[1,0.2,-39],[1,7,-39],[3.73,7,12.31],[3.73,1,12.31]],"r":1,"c":0.04},"32|keygrip|2":{"mode":0,"th0":3.926991,"W":0.785398,"backPre":3,"bestC":0.84},"32|key|2":{"w":[[4.13,1,12.31],[4.13,3,12.31],[-3.73,3,12.31],[-3.73,1,12.31]],"r":1,"c":0.54},"32|key|3":{"w":[[-4.13,1,12.31],[-4.13,4,12.31],[1,4,-39],[1,0.2,-39]],"r":1,"c":0.04},"33|tsq|1":{"w":[[0,3.8,0.16],[0,27.8,0.16],[-14,27.8,-18],[-14,1.25,-18]],"r":1,"c":0.045},"33|rail10|1":{"w":[[-1,1,-49],[-1,31,-49],[-0.0,31,24.66],[-0.0,1,24.66]],"r":1,"c":-0.05},"33|tsq|2":{"w":[[-14,1.25,-18],[-14,27.8,-18],[0,27.8,0.16],[0,3.8,0.16]],"r":1,"c":0.045},"33|keygrip|1":{"mode":0,"th0":3.926991,"W":0.785398,"backPre":3,"bestC":0.84},"33|key|1":{"w":[[1,0.2,-39],[1,7,-39],[3.73,7,21.01],[3.73,1,21.01]],"r":1,"c":0.04},"33|keygrip|2":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.84},"33|key|2":{"w":[[4.13,1,21.01],[4.13,3,21.01],[-3.73,3,21.01],[-3.73,1,21.01]],"r":1,"c":0.54},"33|key|3":{"w":[[-4.13,1,21.01],[-4.13,4,21.01],[1,4,-39],[1,0.2,-39]],"r":1,"c":0.04},"34|tsq|1":{"w":[[0,3.8,0.16],[0,27.8,0.16],[-14,27.8,-18],[-14,1.25,-18]],"r":1,"c":0.045},"35|rail7|1":{"w":[[-1,1,-58],[-1,31,-58],[-0.0,31,4.66],[-0.0,1,4.66]],"r":1,"c":-0.05},"35|tsq|1":{"w":[[-14,1.25,-18],[-16.19,1.25,-18],[-16.19,28.32,-18],[-0.0,28.32,31.06],[-0.0,3.8,31.06],[-0.0,3.8,0.16]],"r":2,"c":0.045},"35|keygrip|1":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.84},"35|key|1":{"w":[[1,0.2,-39],[1,7,-39],[3.73,7,12.31],[3.73,1,12.31]],"r":1,"c":0.04},"35|keygrip|2":{"mode":0,"th0":3.926991,"W":0.785398,"backPre":3,"bestC":0.84},"35|key|2":{"w":[[4.13,1,12.31],[4.13,3,12.31],[-3.73,3,12.31],[-3.73,1,12.31]],"r":1,"c":0.54},"35|key|3":{"w":[[-4.13,1,12.31],[-4.13,4,12.31],[1,4,-39],[1,0.2,-39]],"r":1,"c":0.04},"36|tsq|1":{"w":[[-0.0,3.8,0.16],[-0.0,3.8,31.06],[-0.0,28.32,31.06],[-16.19,28.32,-18],[-16.19,1.25,-18],[-14,1.25,-18]],"r":2,"c":0.045},"36|rail11|1":{"w":[[-1,1,-46],[-1,31,-46],[0,31,17.66],[0,1,17.66]],"r":1,"c":-0.05},"36|tsq|2":{"w":[[-14,1.25,-18],[-16.19,1.25,-18],[-16.19,28.32,-18],[-0.0,28.32,31.06],[-0.0,3.8,31.06],[-0.0,3.8,0.16]],"r":2,"c":0.045},"36|keygrip|1":{"mode":0,"th0":3.926991,"W":0.785398,"backPre":3,"bestC":0.84},"36|key|1":{"w":[[1,0.2,-39],[1,7,-39],[3.73,7,21.01],[3.73,1,21.01]],"r":1,"c":0.04},"36|keygrip|2":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.84},"36|key|2":{"w":[[4.13,1,21.01],[4.13,3,21.01],[-3.73,3,21.01],[-3.73,1,21.01]],"r":1,"c":0.54},"36|key|3":{"w":[[-4.13,1,21.01],[-4.13,4,21.01],[1,4,-39],[1,0.2,-39]],"r":1,"c":0.04},"37|tsq|1":{"w":[[-0.0,3.8,0.16],[-0.0,3.8,31.06],[-0.0,28.32,31.06],[-16.19,28.32,-18],[-16.19,1.25,-18],[-14,1.25,-18]],"r":2,"c":0.045},"38|rail4|1":{"w":[[-24,1,-49],[-24,31,-49],[0,31,4.66],[0,1,4.66]],"r":1,"c":-0.05},"38|tsq|1":{"w":[[-14,1.25,-18],[-16.16,1.25,-18],[-16.16,28.35,-18],[0,28.35,31.06],[0,3.8,31.06],[0,3.8,0.16]],"r":2,"c":0.045},"38|keygrip|1":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.84},"38|key|1":{"w":[[1,0.2,-39],[1,7,-39],[3.73,7,12.31],[3.73,1,12.31]],"r":1,"c":0.04},"38|keygrip|2":{"mode":0,"th0":3.926991,"W":0.785398,"backPre":3,"bestC":0.84},"38|key|2":{"w":[[4.13,1,12.31],[4.13,3,12.31],[-3.73,3,12.31],[-3.73,1,12.31]],"r":1,"c":0.54},"38|key|3":{"w":[[-4.13,1,12.31],[-4.13,4,12.31],[1,4,-39],[1,0.2,-39]],"r":1,"c":0.04},"39|tsq|1":{"w":[[0,3.8,0.16],[0,3.8,31.06],[0,28.35,31.06],[-16.16,28.35,-18],[-16.16,1.25,-18],[-14,1.25,-18]],"r":2,"c":0.045},"39|rail9|1":{"w":[[-1,1,-52],[-1,31,-52],[0,31,17.66],[0,1,17.66]],"r":1,"c":-0.05},"39|tsq|2":{"w":[[-14,1.25,-18],[-16.16,1.25,-18],[-16.16,28.35,-18],[0,28.35,31.06],[0,3.8,31.06],[0,3.8,0.16]],"r":2,"c":0.045},"39|keygrip|1":{"mode":0,"th0":3.926991,"W":0.785398,"backPre":3,"bestC":0.84},"39|key|1":{"w":[[1,0.2,-39],[1,7,-39],[3.73,7,21.01],[3.73,1,21.01]],"r":1,"c":0.04},"39|keygrip|2":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.84},"39|key|2":{"w":[[4.13,1,21.01],[4.13,3,21.01],[-3.73,3,21.01],[-3.73,1,21.01]],"r":1,"c":0.54},"39|key|3":{"w":[[-4.13,1,21.01],[-4.13,4,21.01],[1,4,-39],[1,0.2,-39]],"r":1,"c":0.04},"40|tsq|1":{"w":[[0,3.8,0.16],[0,6.8,0.16],[-39,6.8,-39.5],[-39,1.25,-39.5]],"r":1,"c":0.045},"41|n_back|1":{"w":[[79,0.34,-41],[79,0.34,-41]],"r":null,"c":Infinity},"42|keygrip|1":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|1":{"w":[[1,0.2,-39],[1,2.2,-39],[11.16,10.03,19.01],[11.16,8.03,19.01]],"r":1,"c":0.04},"42|keygrip|2":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|2":{"w":[[11.16,8.03,19.01],[11.16,3.15,14.13]],"r":null,"c":0.94},"42|keygrip|3":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|3":{"w":[[11.16,3.15,14.13],[16.16,3.15,14.13],[16.16,34.9,14.13],[9.01,34.9,26.16],[9.01,8.03,26.16],[9.01,8.03,21.16]],"r":2,"c":0.94},"42|keygrip|4":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|4":{"w":[[9.01,8.03,21.16],[4.13,3.15,21.16]],"r":null,"c":0.94},"42|keygrip|5":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|5":{"w":[[4.13,3.15,21.16],[-9.01,8.03,21.16]],"r":null,"c":0.94},"42|keygrip|6":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|6":{"w":[[-9.01,8.03,21.16],[-4.13,3.15,21.16]],"r":null,"c":0.94},"42|keygrip|7":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|7":{"w":[[-4.13,3.15,21.16],[-4.13,3.15,26.16],[-4.13,34.9,26.16],[-16.16,34.9,19.01],[-16.16,8.03,19.01],[-11.16,8.03,19.01]],"r":2,"c":0.94},"42|keygrip|8":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|8":{"w":[[-11.16,8.03,19.01],[-11.16,3.15,14.13]],"r":null,"c":0.94},"42|keygrip|9":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|9":{"w":[[-11.16,3.15,14.13],[-11.16,8.03,0.99]],"r":null,"c":0.94},"42|keygrip|10":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|10":{"w":[[-11.16,8.03,0.99],[-11.16,3.15,5.87]],"r":null,"c":0.94},"42|keygrip|11":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|11":{"w":[[-11.16,3.15,5.87],[-16.16,3.15,5.87],[-16.16,34.9,5.87],[-9.01,34.9,-6.19],[-9.01,8.03,-6.19],[-9.01,8.03,-1.16]],"r":2,"c":0.94},"42|keygrip|12":{"mode":0,"th0":2.617994,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|12":{"w":[[-9.01,8.03,-1.16],[-4.13,3.15,-1.16]],"r":null,"c":0.94},"42|keygrip|13":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|13":{"w":[[-4.13,3.15,-1.16],[9.01,8.03,-1.16]],"r":null,"c":0.94},"42|keygrip|14":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|14":{"w":[[9.01,8.03,-1.16],[4.13,3.15,-1.16]],"r":null,"c":0.94},"42|keygrip|15":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|15":{"w":[[4.13,3.15,-1.16],[4.13,3.15,-6.19],[4.13,34.9,-6.19],[16.16,34.9,0.99],[16.16,8.03,0.99],[11.16,8.03,0.99]],"r":2,"c":0.94},"42|keygrip|16":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|16":{"w":[[11.16,8.03,0.99],[11.16,3.15,5.87]],"r":null,"c":0.94},"42|keygrip|17":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|17":{"w":[[11.16,3.15,5.87],[-16.16,3.15,5.87],[-16.16,34.9,5.87],[9.01,34.9,26.16],[9.01,21.03,26.16],[9.01,21.03,21.16]],"r":2,"c":0.94},"42|keygrip|18":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|18":{"w":[[9.01,21.03,21.16],[4.13,16.15,21.16]],"r":null,"c":0.94},"42|keygrip|19":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|19":{"w":[[4.13,16.15,21.16],[-9.01,21.03,21.16]],"r":null,"c":0.94},"42|keygrip|20":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|20":{"w":[[-9.01,21.03,21.16],[-4.13,16.15,21.16]],"r":null,"c":0.94},"42|keygrip|21":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|21":{"w":[[-4.13,16.15,21.16],[-9.01,21.03,-1.16]],"r":null,"c":0.94},"42|keygrip|22":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|22":{"w":[[-9.01,21.03,-1.16],[-4.13,16.15,-1.16]],"r":null,"c":0.94},"42|keygrip|23":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|23":{"w":[[-4.13,16.15,-1.16],[9.01,21.03,-1.16]],"r":null,"c":0.94},"42|keygrip|24":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|24":{"w":[[9.01,21.03,-1.16],[4.13,16.15,-1.16]],"r":null,"c":0.94},"42|keygrip|25":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|25":{"w":[[4.13,16.15,-1.16],[4.13,16.15,-6.19],[4.13,34.9,-6.19],[16.16,34.9,0.99],[16.16,21.03,0.99],[11.16,21.03,0.99]],"r":2,"c":0.94},"42|keygrip|26":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|26":{"w":[[11.16,21.03,0.99],[11.16,16.15,5.87]],"r":null,"c":0.94},"42|keygrip|27":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|27":{"w":[[11.16,16.15,5.87],[11.16,21.03,19.01]],"r":null,"c":0.94},"42|keygrip|28":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|28":{"w":[[11.16,21.03,19.01],[11.16,16.15,14.13]],"r":null,"c":0.94},"42|keygrip|29":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|29":{"w":[[11.16,16.15,14.13],[-11.16,21.03,19.01]],"r":null,"c":0.94},"42|keygrip|30":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|30":{"w":[[-11.16,21.03,19.01],[-11.16,16.15,14.13]],"r":null,"c":0.94},"42|keygrip|31":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|31":{"w":[[-11.16,16.15,14.13],[-11.16,21.03,0.99]],"r":null,"c":0.94},"42|keygrip|32":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|32":{"w":[[-11.16,21.03,0.99],[-11.16,16.15,5.87]],"r":null,"c":0.94},"42|keygrip|33":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|33":{"w":[[-11.16,16.15,5.87],[-11.16,16.15,7.87],[-9.01,17.97,-1.16],[-9.01,19.97,-1.16]],"r":1,"c":0.031},"42|keygrip|34":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|34":{"w":[[-9.01,19.97,-1.16],[-4.13,24.85,-1.16]],"r":null,"c":0.94},"42|keygrip|35":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|35":{"w":[[-4.13,24.85,-1.16],[9.01,19.97,-1.16]],"r":null,"c":0.94},"42|keygrip|36":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|36":{"w":[[9.01,19.97,-1.16],[4.13,24.85,-1.16]],"r":null,"c":0.94},"42|keygrip|37":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|37":{"w":[[4.13,24.85,-1.16],[9.01,19.97,21.16]],"r":null,"c":0.94},"42|keygrip|38":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|38":{"w":[[9.01,19.97,21.16],[4.13,24.85,21.16]],"r":null,"c":0.94},"42|keygrip|39":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|39":{"w":[[4.13,24.85,21.16],[-9.01,19.97,21.16]],"r":null,"c":0.94},"42|keygrip|40":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|40":{"w":[[-9.01,19.97,21.16],[-4.13,24.85,21.16]],"r":null,"c":0.94},"42|keygrip|41":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|41":{"w":[[-4.13,24.85,21.16],[11.16,19.97,0.99]],"r":null,"c":0.94},"42|keygrip|42":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|42":{"w":[[11.16,19.97,0.99],[11.16,24.85,5.87]],"r":null,"c":0.94},"42|keygrip|43":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|43":{"w":[[11.16,24.85,5.87],[11.16,19.97,19.01]],"r":null,"c":0.94},"42|keygrip|44":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|44":{"w":[[11.16,19.97,19.01],[11.16,24.85,14.13]],"r":null,"c":0.94},"42|keygrip|45":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|45":{"w":[[11.16,24.85,14.13],[-11.16,19.97,19.01]],"r":null,"c":0.94},"42|keygrip|46":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|46":{"w":[[-11.16,19.97,19.01],[-11.16,24.85,14.13]],"r":null,"c":0.94},"42|keygrip|47":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|47":{"w":[[-11.16,24.85,14.13],[-11.16,19.97,0.99]],"r":null,"c":0.94},"42|keygrip|48":{"mode":0,"th0":2.356194,"W":0.785398,"backPre":3,"bestC":0.94},"42|key|48":{"w":[[-11.16,19.97,0.99],[-11.16,24.85,5.87]],"r":null,"c":0.94},"42|key|49":{"w":[[-11.16,24.85,5.87],[16.16,24.85,5.87],[16.16,34.9,5.87],[1,34.9,-41],[1,0.2,-41],[1,0.2,-39]],"r":2,"c":0.04},"43|foot0|1":{"w":[[65.5,0.785,-43.5],[65.5,37.175,-43.5],[11.16,37.175,-4.84],[11.16,34.175,-4.84]],"r":1,"c":0.01},"43|keygrip|1":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":1.79},"43|key|1":{"w":[[1,0.2,-39],[1,7.2,-39],[11.16,44.65,21.16],[11.16,37.65,21.16]],"r":1,"c":0.04},"43|foot1|1":{"w":[[69.5,0.785,-43.5],[69.5,37.175,-43.5],[-11.16,37.175,21.16],[-11.16,34.175,21.16]],"r":1,"c":0.01},"43|keygrip|2":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":1.79},"43|key|2":{"w":[[11.16,37.25,21.16],[-11.16,37.65,21.16]],"r":null,"c":3.69},"43|foot2|1":{"w":[[65.5,0.785,-38.5],[65.5,37.175,-38.5],[-11.16,37.175,-1.16],[-11.16,34.175,-1.16]],"r":1,"c":0.01},"43|keygrip|3":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":1.79},"43|key|3":{"w":[[-11.16,37.25,21.16],[-11.16,37.65,-1.16]],"r":null,"c":3.69},"43|foot3|1":{"w":[[69.5,0.785,-38.5],[11.16,34.175,-1.16]],"r":null,"c":0.01},"43|keygrip|4":{"mode":0,"th0":0,"W":0.785398,"backPre":3,"bestC":1.79},"43|key|4":{"w":[[-11.16,37.25,-1.16],[11.16,37.65,-1.16]],"r":null,"c":3.69},"43|key|5":{"w":[[11.16,37.25,-1.16],[1,0.2,-39]],"r":null,"c":0.04}}/*END*/;
+let planCount={}; window.__bake=[];
+function bakeKey(id){ const n=(planCount[id]=(planCount[id]||0)+1); return cur+'|'+id+'|'+n; }
+const V3=a=>new THREE.Vector3(a[0],a[1],a[2]);
+function planCarry(o, p0,q0, p1,q1, opts={}){
+  const key=bakeKey(o.userData.id), b=BAKED&&BAKED[key];
+  if (b){ const m=MID[o.userData.kind]||new THREE.Vector3(), ax=AXIS[o.userData.kind];
+    const pE = opts.pre ? p1.clone().add(opts.pre) : p1.clone();
+    const wps=b.w.map(V3); wps[0]=p0.clone().add(m.clone().applyQuaternion(q0)); wps[wps.length-1]=pE.clone().add(m.clone().applyQuaternion(q1));
+    const path=makePath(m,ax,q0,q1,wps,b.r); const tmp={p:new THREE.Vector3(),q:new THREE.Quaternion()};
+    return { len:path.len, clear:b.c, pE, at:t=>{ path.at(t,tmp); o.position.copy(tmp.p); o.quaternion.copy(tmp.q); } }; }
+  if (BAKED) console.warn('path not recorded:', key);
+  const r=planCarryImpl(o,p0,q0,p1,q1,opts); window.__bake.push([key,{w:r.wps.map(v=>[+v.x.toFixed(4),+v.y.toFixed(4),+v.z.toFixed(4)]), r:r.rot, c:+r.clear.toFixed(3)}]); return r;
+}
+function planCarryImpl(o, p0,q0, p1,q1, {minLift=3, pre=null, exit0=null, exit1=null}={}){
+  const m=MID[o.userData.kind]||new THREE.Vector3(), ax=AXIS[o.userData.kind];
+  const pr=probesOf(o), obs=obstacles(o, !TOOL_PROBES[o.userData.id]);
+  const isExt = o.userData.kind==='post'||o.userData.kind==='rail';
+  const own = o.userData.kind==='post' ? [new THREE.Vector3(-1,0,-1),new THREE.Vector3(1,POST_L,1)] : o.userData.kind==='rail' ? [new THREE.Vector3(-RAIL_L/2,-1,-1),new THREE.Vector3(RAIL_L/2,1,1)] : null;
+  const pE = pre ? p1.clone().add(pre) : p1.clone();                       // where the carry ends; an approach move follows when pre is set
+  const touchAt=(p,q)=>{ const s=new Set(); for (const ob of obs){ if (ob.o===parts.tsq) continue; const c=clearance(pr,p,q,[ob],null,own); if (c<0.2 && c>-0.25) s.add(ob.o); } return s; };   // the T-square is never let off: nothing may pass through it
+  const t0=touchAt(p0,q0), t1=touchAt(pE,q1);
+  const c0=p0.clone().add(m.clone().applyQuaternion(q0)), cE=pE.clone().add(m.clone().applyQuaternion(q1));
+  const mk=(wps,rot)=>makePath(m,ax,q0,q1,wps,rot);
+  const cands=[]; const base=Math.max(c0.y,cE.y);
+  const up=(c,h)=>new THREE.Vector3(c.x,h,c.z);
+  if (!isExt) cands.push(mk([c0,cE],null));                                  // straight across
+  if (!isExt && exit0 && exit1) for (const d of [2,4,7]){ const a=c0.clone().addScaledVector(exit0,d), b=cE.clone().addScaledVector(exit1,d); cands.push(mk([c0,a,b,cE],1)); }
+  for (const dh of [minLift,6,10,16,24,34,46]){ if (dh<minLift) continue; const h=base+dh; cands.push(mk([c0,up(c0,h),up(cE,h),cE],1)); }
+  if (!isExt){ // leave the frame sideways first (under or over the rails), go round, come in sideways
+    let fb=null; for (const ob of obs){ if (!ob.inv) continue; const e=ob.o; if (e.parent!==build) continue; const b=new THREE.Box3().setFromObject(e); fb=fb?fb.union(b):b; }
+    if (fb){ const dirs=[new THREE.Vector3(1,0,0),new THREE.Vector3(-1,0,0),new THREE.Vector3(0,0,1),new THREE.Vector3(0,0,-1)];
+      const outPt=(c,d)=>{ const t = d.x>0? fb.max.x+4-c.x : d.x<0? c.x-(fb.min.x-4) : d.z>0? fb.max.z+4-c.z : c.z-(fb.min.z-4); return c.clone().addScaledVector(d,Math.max(t,2)); };
+      for (const d0 of dirs) for (const d1 of dirs){ const a=outPt(c0,d0), b=outPt(cE,d1); for (const dh of [4,12]){ const h=Math.max(base, fb.max.y)+dh;
+        cands.push(mk([c0,a,up(a,h),up(b,h),b,cE],2)); } } } }
+  cands.sort((A,B)=>A.len-B.len);
+  let best=null, bestC=-Infinity; const tmp={p:new THREE.Vector3(),q:new THREE.Quaternion()};
+  for (const c of cands){ let worst=Infinity; const N=Math.max(20, Math.ceil(c.len/0.3));          // checked every 3 mm along the path
+    for (let i=0;i<=N;i++){ c.atS(c.len*i/N,tmp); const skip = tmp.s<2.5 ? t0 : tmp.tot-tmp.s<2.5 ? t1 : null;
+      worst=Math.min(worst, clearance(pr,tmp.p,tmp.q,obs,skip,own)); if (worst<-0.01 && worst<bestC) break; }
+    if (worst>bestC){ bestC=worst; best=c; }
+    if (worst>=-0.01) break; }
+  return { len:best.len, clear:bestC, wps:best.wps, rot:best.rot, at:t=>{ best.at(t,tmp); o.position.copy(tmp.p); o.quaternion.copy(tmp.q); }, pE };
+}
+const CAP_MAT=new THREE.MeshBasicMaterial({color:0xe0561a, transparent:true, opacity:.55, side:THREE.DoubleSide, depthWrite:false});
+function addCaps(o){ const caps=[]; const g=new THREE.ShapeGeometry(PROFILE);   // glow exactly on the open end faces
+  const spots = o.userData.kind==='post' ? [[0,-0.05,0,qAA(X,Math.PI/2)],[0,POST_L+0.05,0,qAA(X,Math.PI/2)]] : [[-RAIL_L/2-0.05,0,0,qAA(Y,Math.PI/2)],[RAIL_L/2+0.05,0,0,qAA(Y,Math.PI/2)]];
+  for (const [x,y,z,q] of spots){ const m=new THREE.Mesh(g,CAP_MAT); m.position.set(x,y,z); m.quaternion.copy(q); o.add(m); caps.push(m); CAPS.add(m); }
+  return ()=>caps.forEach(c=>{ o.remove(c); CAPS.delete(c); }); }
+const CAPS=new Set(); function clearCaps(){ for (const c of CAPS) if (c.parent) c.parent.remove(c); CAPS.clear(); }
+const CAREFUL='KEEP LEVEL  ·  loose T-nuts inside';
+function slerpStable(a,b,out,t){ // like slerp, but a half-turn always goes the same way: the recorded paths were checked for that way
+  let bx=b.x,by=b.y,bz=b.z,bw=b.w, d=a.x*bx+a.y*by+a.z*bz+a.w*bw; const r=v=>Math.round(v*1e5);
+  if (d<-1e-5 || (Math.abs(d)<=1e-5 && (r(bw)<0 || (r(bw)===0 && (r(bx)<0 || (r(bx)===0 && (r(by)<0 || (r(by)===0 && r(bz)<0)))))))){ bx=-bx; by=-by; bz=-bz; bw=-bw; d=-d; }
+  if (d>0.9995){ out.set(a.x+(bx-a.x)*t, a.y+(by-a.y)*t, a.z+(bz-a.z)*t, a.w+(bw-a.w)*t).normalize(); return out; }
+  const th=Math.acos(Math.max(-1,Math.min(1,d))), sn=Math.sin(th), k0=Math.sin((1-t)*th)/sn, k1=Math.sin(t*th)/sn;
+  out.set(a.x*k0+bx*k1, a.y*k0+by*k1, a.z*k0+bz*k1, a.w*k0+bw*k1); return out; }
+function levelSlerp(q0,q1,out,t,axisLocal){ // interpolate yaw and roll separately so the part's axis stays horizontal all the way
+  if (!axisLocal){ slerpStable(q0,q1,out,t); return; }
+  const a0=axisLocal.clone().applyQuaternion(q0), a1=axisLocal.clone().applyQuaternion(q1);
+  if (Math.abs(a0.y)>0.02||Math.abs(a1.y)>0.02){ slerpStable(q0,q1,out,t); return; }   // (an end-for-end turn is a yaw of 180°, still level)
+  const yaw=Math.atan2(new THREE.Vector3().crossVectors(a0,a1).y, a0.dot(a1));
+  const qres=qMul(q1, qMul(qAA(Y,yaw),q0).invert());                       // what is left is a roll about a1
+  const ang=2*Math.atan2(new THREE.Vector3(qres.x,qres.y,qres.z).dot(a1), qres.w);
+  const qyt=qAA(Y,yaw*t); const at=a0.clone().applyQuaternion(qyt);
+  out.copy(qMul(qAA(at,ang*t), qyt, q0));
+}
+async function standPart(id, {instant=false, lowLocal, d, lateral=[0,0,0], label=null, label2=null, slides=[], restY=1, gap=1.5, lift=42}={}){
+  const o=parts[id], h=o.userData.homes.build;
+  if (instant){ place(id,'build'); for (const sl of slides) parts[sl.id].position.set(...sl.to); return; }
+  const {p:p1,q:q1}=worldOf(h.parent,h.pos,h.quat);
+  const low=new THREE.Vector3(...lowLocal);
+  const E=low.clone().applyQuaternion(q1).add(p1);                           // the low end's final world point: the pivot
+  const dv=new THREE.Vector3(...d).normalize(); const k=new THREE.Vector3().crossVectors(dv,Y).normalize();
+  const q0=qMul(qAA(k,-Math.PI/2),q1);                                       // lying along d, same roll as the final pose
+  const P=E.clone().addScaledVector(dv,restY+gap).add(new THREE.Vector3(...lateral)); // pivot: the end's bottom edge, a little short of the final spot
+  const p0=P.clone().add(new THREE.Vector3(0,restY,0)).sub(low.clone().applyQuaternion(q0));
+  scene.attach(o); const ps=o.position.clone(), qs=o.quaternion.clone();
+  const rmCaps=addCaps(o);
+  const lab=label?addLabel(label,'fly',o,[0,3,0]):null;
+  const plan=planCarry(o,ps,qs,p0,q0,{minLift:3});
+  await tween((700+plan.len*22)*1.6, t=>plan.at(t));
+  if (lab&&label2) lab.el.textContent=label2;
+  await wait(250);
+  const sa=slides.map(sl=>({o:parts[sl.id], from:parts[sl.id].position.clone(), to:new THREE.Vector3(...sl.to)}));
+  await tween(1500, t=>{ const q=qAA(k,Math.PI/2*t); o.position.copy(p0).sub(P).applyQuaternion(q).add(P); o.quaternion.copy(qMul(q,q0));
+    const u=Math.max(0,(t-0.3)/0.7); for (const a of sa) a.o.position.lerpVectors(a.from,a.to,ease(u)); });
+  const lat=new THREE.Vector3(...lateral); const pl=o.position.clone(); const pm=p1.clone().add(lat);
+  await tween(350, t=>o.position.lerpVectors(pl,pm,t));                       // slide the last bit in along the part, then sideways into the corner
+  if (lat.lengthSq()>0) await tween(350, t=>o.position.lerpVectors(pm,p1,t));
+  place(id,'build'); for (const a of sa) a.o.position.copy(a.to); if (lab) removeLabel(lab); rmCaps();
+}
+const APPROACH={ bracketPost:[1,0,0], bracketRail:[0,-1,0], foot:[0,-1,0], tsq:[0,1,0] };   // which way a part backs off its final spot
+async function moveTo(id, homeName, {instant=false, lift=null, dur=700, delay=0, label, careful=false, approach=null, adist=2.5}={}){
+  const o=parts[id], h=o.userData.homes[homeName];
+  if (instant){ place(id,homeName); return; }
+  await wait(delay);
+  if (careful && label===undefined) label=CAREFUL;
+  const rmCaps = careful ? addCaps(o) : null;
+  const lab = label ? addLabel(label,'fly',o,[0,3,0]) : null;
+  scene.attach(o);
+  const p0=o.position.clone(), q0=o.quaternion.clone();
+  const {p:p1,q:q1}=worldOf(h.parent,h.pos,h.quat);
+  const pre = approach ? new THREE.Vector3(...approach).applyQuaternion(q1).multiplyScalar(adist) : null;
+  const plan=planCarry(o,p0,q0,p1,q1,{minLift:lift??3, pre}); o.userData.phase='carry c='+plan.clear.toFixed(2);
+  await tween((dur+plan.len*(careful?22:7))*(careful?1.6:1), t=>plan.at(t));
+  if (pre){ o.userData.phase='approach'; const a=o.position.clone(); await tween(careful?700:350, t=>o.position.lerpVectors(a,p1,t)); }
+  o.userData.phase='placed '+homeName; place(id,homeName); if (lab) removeLabel(lab); if (rmCaps) rmCaps();
+}
+async function slideNut(id, {instant=false, delay=0, label=null}={}){ // fly from the cup to the groove mouth, then slide in along the groove
+  const o=parts[id], h=o.userData.homes.loaded, parent=h.parent;
+  if (instant){ place(id,'loaded'); return; }
+  await wait(delay);
+  const lab = label ? addLabel(label,'fly',o,[0,2.5,0]) : null;
+  // groove axis in parent local: posts run along y (enter from the foot, y<0); rails along x (enter from the -x end)
+  const axis = parent.userData.kind==='post' ? new THREE.Vector3(0,1,0) : new THREE.Vector3(1,0,0);
+  const startLocal = parent.userData.kind==='post' ? new THREE.Vector3(h.pos.x,-1.4,h.pos.z) : new THREE.Vector3(-RAIL_L/2-1.4,h.pos.y,h.pos.z);
+  const {p:pm,q:qm}=worldOf(parent,startLocal,h.quat);
+  scene.attach(o); const p0=o.position.clone(), q0=o.quaternion.clone();
+  const out=axis.clone().negate().transformDirection(parent.matrixWorld).multiplyScalar(0.6);
+  const plan=planCarry(o,p0,q0,pm,qm,{minLift:3, pre:out});
+  await tween(450+plan.len*6, t=>plan.at(t));
+  { const a=o.position.clone(); await tween(150, t=>o.position.lerpVectors(a,pm,t)); }
+  parent.attach(o); o.position.copy(startLocal); o.quaternion.copy(h.quat);
+  const dist=startLocal.distanceTo(h.pos);
+  await tween(250+dist*18, t=>{ o.position.lerpVectors(startLocal,h.pos,t); });
+  place(id,'loaded'); if (lab) removeLabel(lab);
+}
+async function slideLocal(id, pos, {instant=false, dur=700, delay=0}={}){ // nut sliding inside its groove
+  const o=parts[id]; const p1=new THREE.Vector3(...pos);
+  if (instant){ o.position.copy(p1); return; }
+  await wait(delay); const p0=o.position.clone(); await tween(dur, t=>o.position.lerpVectors(p0,p1,t));
+}
+async function roll(id, axisLocal, angle, {instant=false, dur=1500, delay=0}={}){
+  const o=parts[id]; const q0=o.quaternion.clone(); const q1=qMul(q0, qAA(axisLocal,angle)); const y0=o.position.y;
+  if (instant){ o.quaternion.copy(q1); return; }
+  await wait(delay); await tween(dur, t=>{ o.quaternion.copy(qMul(q0,qAA(axisLocal,angle*t))); o.position.y=y0+0.42*Math.abs(Math.sin(2*angle*t)); });   // exactly the way the arrow points, even for a half turn o.position.y=y0;
+}
+async function rollTo(id, q1, {instant=false, dur=1500, delay=0}={}){
+  const o=parts[id]; const q0=o.quaternion.clone(); const y0=o.position.y; const ang=2*Math.acos(Math.min(1,Math.abs(q0.dot(q1))));
+  if (instant){ o.quaternion.copy(q1); return; }
+  await wait(delay); await tween(dur, t=>{ levelSlerp(q0,q1,o.quaternion,t,AXIS[o.userData.kind]); o.position.y=y0+0.42*Math.abs(Math.sin(2*ang*t)); }); o.quaternion.copy(q1); o.position.y=y0;
+}
+async function seatScrew(s, {instant=false, delay=0}={}){ // screw drops in along its own +y and spins
+  if (instant){ s.visible=true; return; }
+  await wait(delay); s.visible=true;
+  const p1=s.position.clone(); const up=new THREE.Vector3(0,-1,0).applyQuaternion(s.quaternion).multiplyScalar(2.2); const p0=p1.clone().add(up);
+  const q1=s.quaternion.clone(); const q0=qMul(q1,qAA(Y,Math.PI*3));
+  await tween(650, t=>{ s.position.lerpVectors(p0,p1,t); THREE.Quaternion.slerp(q0,q1,s.quaternion,t); });
+  s.position.copy(p1); s.quaternion.copy(q1);
+}
+async function slideBuild(toPose, {instant=false, dur=1500}={}){
+  if (instant){ setPose(toPose); return; }
+  const p0=build.position.clone(), p1=POSE[toPose].pos.clone();
+  await tween(dur, t=>build.position.lerpVectors(p0,p1,t)); setPose(toPose);
+}
+async function driveScrew(sc, {instant=false, quick=false, first=false, last=false, tighten=false}={}){ // the key comes in, turns, the screw goes home (tighten: it is already in, a short firm turn)
+  if (instant){ sc.visible=true; return; }
+  window.__curScrew=sc;
+  const key=parts.key; const p1=sc.position.clone(), q1=sc.quaternion.clone();
+  const ax=new THREE.Vector3(0,1,0).applyQuaternion(q1);
+  sc.visible=true; if (!tighten) sc.position.copy(p1).addScaledVector(ax,-0.4);
+  let mode=0;
+  const keyAt=(theta,back,md=mode)=>{ sc.updateMatrixWorld(true);
+    const off = md===0 ? new THREE.Matrix4().compose(new THREE.Vector3(0,0.1-KEY_TIP-back,0), qAA(Y,theta), new THREE.Vector3(1,1,1))
+                       : new THREE.Matrix4().compose(new THREE.Vector3(0,0.1-7-back,0), qMul(qAA(Y,theta),qAA(Z,Math.PI/2)), new THREE.Vector3(1,1,1));
+    const w=sc.matrixWorld.clone().multiply(off); const p=new THREE.Vector3(), q=new THREE.Quaternion(), sv=new THREE.Vector3(); w.decompose(p,q,sv); return {p,q}; };
+  scene.attach(key); const ks=key.position.clone(), kq=key.quaternion.clone();
+  // where the handle can swing: try short arm in the screw first, then long arm in; widest clear stroke wins
+  let th0=0, W=Math.PI/4, bestC=-Infinity, found=false, backPre=0.6;
+  const kk=bakeKey('keygrip'), kb=BAKED&&BAKED[kk];
+  if (kb){ ({mode,th0,W,backPre,bestC}=kb); found=true; }
+  else { if (BAKED) console.warn('grip not recorded:', kk);
+  const obs=obstacles(null,false); const probeSets=[TOOL_PROBES.key.filter(q=>q.p.y<1.9), TOOL_PROBES.key.filter(q=>q.p.x<6.4)];
+  const cAt=(th,b,md)=>{ const kp=keyAt(th,b,md); return clearance(probeSets[md],kp.p,kp.q,obs,null); };
+  for (const w of [Math.PI/4, Math.PI/6, Math.PI/9]){ for (const md of [0,1]){ for (let a=0;a<360;a+=15){ const th=a*Math.PI/180; let c=Infinity;
+        for (let j=0;j<=6 && c>=bestC;j++){ const t2=th-w+2*w*j/6; c=Math.min(c, cAt(t2,0,md), cAt(t2,0.6,md)); }
+        if (c<=bestC) continue;
+        let bp=null; for (const b of [3,2,1.4,0.9,0.6]){ let ok=true; for (let j=0;j<=6;j++) if (cAt(th-w,b*j/6,md)<0){ ok=false; break; } if (ok){ bp=b; break; } }
+        if (bp===null && found) continue;
+        bestC=c; th0=th; W=w; mode=md; backPre=bp??0.6; if (c>=0 && bp!==null) found=true; }
+      if (found) break; }
+    if (found) break; }
+  window.__bake.push([kk,{mode,th0:+th0.toFixed(6),W:+W.toFixed(6),backPre,bestC:+bestC.toFixed(3)}]); }
+  const pre=keyAt(th0-W,backPre); const ax1w=ax.clone().transformDirection(sc.parent.matrixWorld).negate();
+  const plan=planCarry(key,ks,kq,pre.p,pre.q,{minLift:2, exit0:window.__keyExit||ax1w, exit1:ax1w}); window.__keyExit=ax1w;
+  key.userData.phase='travel c='+plan.clear.toFixed(2)+' m'+mode+' W'+W.toFixed(2)+' best'+bestC.toFixed(2); await tween((quick?250:450)+plan.len*(quick?6:9), t=>plan.at(t)); key.userData.phase='strokes m'+mode+' best'+bestC.toFixed(2);
+  const strokes=tighten?1:quick?2:3, sweep=tighten?0.35:1;          // tightening: one short turn of the key, the screw does not travel
+  for (let n=0;n<strokes;n++){
+    const a=keyAt(th0-W,n?0.6:backPre), b=keyAt(th0-W,0); await tween(n?120:200, t=>{ key.position.lerpVectors(a.p,b.p,t); key.quaternion.copy(b.q); });
+    await tween(tighten?300:quick?260:420, t=>{ const th=th0-W+2*W*sweep*t; const k2=keyAt(th,0); key.position.copy(k2.p); key.quaternion.copy(k2.q); if(!tighten) sc.position.copy(p1).addScaledVector(ax,-0.4*(1-(n+t)/strokes)); });
+    const thE=th0-W+2*W*sweep; const c=keyAt(thE,0), d=keyAt(thE,0.6); await tween(120, t=>{ key.position.lerpVectors(c.p,d.p,t); key.quaternion.copy(c.q); });
+    if (n<strokes-1){ await tween(quick?140:220, t=>{ const k2=keyAt(th0+W-2*W*t,0.6); key.position.copy(k2.p); key.quaternion.copy(k2.q); }); }
+  }
+  sc.position.copy(p1);
+  { const thE=th0-W+2*W*sweep, a=keyAt(thE,0.6), b=keyAt(thE,Math.max(0.6,backPre)); await tween(160, t=>{ key.position.lerpVectors(a.p,b.p,t); key.quaternion.copy(a.q); }); }
+  if (last){ mode=0; window.__keyExit=null; await moveTo('key','storage',{dur:500}); }
+}
+async function driveAll(screws,{instant=false, quick=true, fastAfter=Infinity, fastScale=0.4, tighten=false}={}){ // after the first few screws the student has seen how: the rest go quicker
+  for (let i=0;i<screws.length;i++){ TSCALE = i>=fastAfter ? fastScale : 1; await driveScrew(screws[i],{instant,quick,tighten,first:i===0,last:i===screws.length-1}); } TSCALE=1; }
+function settleNuts(instant){ // a rail that ends up standing: its loose nuts slide down until they stop (the posts close both ends of the groove)
+  build.updateMatrixWorld(true); const moves=[];
+  for (let r=0;r<12;r++){ const o=parts['rail'+r]; if (o.parent!==build) continue; o.updateMatrixWorld(true);
+    const ax=new THREE.Vector3(1,0,0).transformDirection(o.matrixWorld); if (Math.abs(ax.y)<0.7) continue; const s= ax.y>0 ? -1 : 1;   // s: the low end
+    const loose=[[`r${r}a1`, s*(RAIL_L/2-HOLE-1)], [`r${r}b`, s*(RAIL_L/2-0.6)]];
+    if (r===5) [0,1,2].forEach(k=>loose.push([`r5c${s>0?2-k:k}`, s*(RAIL_L/2-0.6-k*1.05)]));
+    for (const [id,x] of loose){ const n=parts[id]; if (n.parent!==o || Math.abs(n.position.x-x)<1e-3) continue; moves.push({n, from:n.position.clone(), to:n.position.clone().setX(x)}); } }
+  if (instant||!moves.length){ moves.forEach(m=>m.n.position.copy(m.to)); return Promise.resolve(); }
+  return tween(450, (e,t)=>moves.forEach(m=>m.n.position.lerpVectors(m.from,m.to,t*t))); }
+async function rollFrame(dir, toPose, i){ // dir -1: a quarter turn to your left, +1: to your right. It ends right in front of you: rolled
+  if (i){ setPose(toPose); settleNuts(true); return; }   // to the right it is slid back afterwards, to the left it is slid over first (the left front corner is the magnifier's)
+  if (dir<0){ POSE.__pre={pos:build.position.clone().add(new THREE.Vector3(2*(HALF+1),0,0)), quat:build.quaternion.clone()}; await slideBuild('__pre',{dur:1800}); await wait(300); }
+  const piv=new THREE.Vector3(build.position.x+dir*(HALF+1),0,0), ang=-dir*Math.PI/2, q=qAA(Z,ang);
+  POSE.__roll={pos:build.position.clone().sub(piv).applyQuaternion(q).add(piv), quat:qMul(q,build.quaternion)};
+  await tipBuild('__roll', piv, Z, ang, {dur:4000});
+  if (dir>0){ await wait(300); await slideBuild(toPose,{dur:1800}); } else setPose(toPose); }
+async function turnAround(toPose, i){ // standing on its feet: turned half way round on the spot, drawn back a little mid-turn so its corners stay inside the tray
+  if (i){ setPose(toPose); return; }
+  const p0=build.position.clone(), q0=build.quaternion.clone(), p1=POSE[toPose].pos.clone();
+  await tween(3000, t=>{ build.position.lerpVectors(p0,p1,t); build.position.z-=4.5*Math.sin(Math.PI*t); build.quaternion.copy(qMul(qAA(Y,Math.PI*t),q0)); }); setPose(toPose); }
+async function flipUpright(i){ // lift it and turn it over sideways (about the axis pointing at you), high enough that nothing touches the tray
+  if (i){ setPose('final'); settleNuts(true); return; }
+  const q0=build.quaternion.clone(), c=new THREE.Vector3(0,15.3,0), C0=build.localToWorld(c.clone()), C1=new THREE.Vector3().copy(POSE.final.pos).add(c.clone().applyQuaternion(POSE.final.quat));
+  const corners=[]; for (const x of [-12.16,12.16]) for (const y of [-FOOT_DROP,0.6+POST_L]) for (const z of [-12.16,12.16]) corners.push(new THREE.Vector3(x,y,z).sub(c));
+  await tween(3600, t=>{ const q=qMul(qAA(Z,Math.PI*t),q0); const C=C0.clone().lerp(C1,t); let lo=Infinity; for (const k of corners) lo=Math.min(lo, C.y+k.clone().applyQuaternion(q).y);
+    if (lo<0.4) C.y+=0.4-lo; build.quaternion.copy(q); build.position.copy(C).sub(c.clone().applyQuaternion(q)); });
+  setPose('final'); await settleNuts(false); }
+async function tipBuild(toPose, pivot, axis, angle, {instant=false, dur=2600}={}){
+  if (instant){ setPose(toPose); settleNuts(true); return; }
+  const p0=build.position.clone(), q0=build.quaternion.clone();
+  await tween(dur, t=>{ const q=qAA(axis,angle*t); build.position.copy(p0).sub(pivot).applyQuaternion(q).add(pivot); build.quaternion.copy(qMul(q,q0)); });
+  setPose(toPose); await settleNuts(false);
+}
+const par=(...ps)=>Promise.all(ps);
+
+/* T-square: head hooked over the head end (the top of the frame), blade lying across the rails of the face that is down */
+const TOP_Y=0.6+POST_L;                                          // 31.5: post ends flush with the top of the top rails
+const FACES={ // the face on the table: its rails, the way into the frame (up while it is down), the rails' inner faces, the rails' direction
+  back: {pose:'lying',  up:new THREE.Vector3(0,0,1),  base:new THREE.Vector3(0,0,-HALF+1), along:X},
+  front:{pose:'front',  up:new THREE.Vector3(0,0,-1), base:new THREE.Vector3(0,0,HALF-1),  along:X},
+  left: {pose:'left',   up:new THREE.Vector3(1,0,0),  base:new THREE.Vector3(-HALF+1,0,0), along:Z},
+  right:{pose:'right',  up:new THREE.Vector3(-1,0,0), base:new THREE.Vector3(HALF-1,0,0),  along:Z} };
+for (const f in FACES){ const F=FACES[f]; const bx=new THREE.Vector3(0,-1,0), by=F.up.clone(), bz=new THREE.Vector3().crossVectors(bx,by);
+  home('tsq','m_'+f, build, F.base.clone().setY(TOP_Y).toArray(), new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(bx,by,bz))); }
+home('tsq','park',scene,[-14,1.25,-18], qAA(Z,-0.042));        // on the work tray beyond the frame, head down, blade tip resting
+// rails go down a little short of their mark, nearer the feet, and slide up to it under the T-square
+for (const r of [4,8,6,10,7,11,5,9]){ const h=parts['rail'+r].userData.homes.build; home('rail'+r,'rough',build,h.pos.clone().add(new THREE.Vector3(0,-1.5,0)).toArray(),h.quat); }
+// on the right side the left rails lie right above these spots: lower each one in through the gap beyond the rail above, then slide it toward the feet
+home('rail7','gap',build,[HALF,23,0],parts.rail7.userData.homes.build.quat); home('rail11','gap',build,[HALF,10,0],parts.rail11.userData.homes.build.quat);
+home('rail4','gap',build,[0,23,HALF],parts.rail4.userData.homes.build.quat);  home('rail9','gap',build,[0,10,HALF],parts.rail9.userData.homes.build.quat);   // on its front: the back rails are above
+function measureCam(f,mark){ const F=FACES[f], P=POSE[F.pose]; const g=new THREE.Object3D(); g.position.copy(P.pos); g.quaternion.copy(P.quat); g.updateMatrixWorld(true);
+  const at=g.localToWorld(F.base.clone().setY(TOP_Y-mark)); const d=F.along.clone().applyQuaternion(P.quat); const up=new THREE.Vector3(0,0.4,0);
+  return {ortho:true, at:at.toArray(), dir:[0,1,0.0001], size:3.3, dist:12, line:[at.clone().addScaledVector(d,-7).add(up).toArray(), at.clone().addScaledVector(d,7).add(up).toArray()], lineW:0.07}; }
+const TSQ_LIFT=1.8, TSQ_IN=4;   // the hook hangs 1.25 below the blade: lifted 1.8 it clears the rails; 4 cm toward the feet it clears the top rail above
+async function tsqOn(f,i){ // down through the open side toward the feet end, slide toward the head, drop the hook over the end
+  if (i){ place('tsq','m_'+f); return; }
+  const o=parts.tsq, h=o.userData.homes['m_'+f]; const {p:p1,q:q1}=worldOf(h.parent,h.pos,h.quat);
+  const up=new THREE.Vector3(0,1,0).applyQuaternion(q1), along=new THREE.Vector3(1,0,0).applyQuaternion(q1);
+  const pB=p1.clone().addScaledVector(up,TSQ_LIFT), pA=pB.clone().addScaledVector(along,TSQ_IN);
+  const lab=addLabel('T-square on the head end','fly',o,[0,3,0]);
+  scene.attach(o); const plan=planCarry(o,o.position.clone(),o.quaternion.clone(),pA,q1,{minLift:3}); o.userData.phase='carry';
+  await tween(700+plan.len*8, t=>plan.at(t)); o.userData.phase='hook';
+  await tween(800, t=>o.position.lerpVectors(pA,pB,t)); await tween(500, t=>o.position.lerpVectors(pB,p1,t));
+  place('tsq','m_'+f); o.userData.phase=null; removeLabel(lab); }
+async function tsqOff(dest,i){ // the same way out: lift the hook, slide toward the feet, then away
+  if (i){ place('tsq',dest); return; }
+  const o=parts.tsq; scene.attach(o); const p1=o.position.clone(), q1=o.quaternion.clone();
+  const up=new THREE.Vector3(0,1,0).applyQuaternion(q1), along=new THREE.Vector3(1,0,0).applyQuaternion(q1);
+  const pB=p1.clone().addScaledVector(up,TSQ_LIFT), pA=pB.clone().addScaledVector(along,TSQ_IN); o.userData.phase='unhook';
+  await tween(450, t=>o.position.lerpVectors(p1,pB,t)); await tween(700, t=>o.position.lerpVectors(pB,pA,t));
+  const h=o.userData.homes[dest]; const {p:p2,q:q2}=worldOf(h.parent,h.pos,h.quat); const plan=planCarry(o,pA,q1,p2,q2,{minLift:3}); o.userData.phase='carry';
+  await tween(700+plan.len*8, t=>plan.at(t)); place('tsq',dest); o.userData.phase=null; }
+async function measureRail(r,f,mark,i){ // rail down short of the mark, T-square on, slide the rail to the mark, two screws
+  if (parts.tsq.userData.home==='m_'+f) await tsqOff('park',i);
+  if (parts['rail'+r].userData.homes.gap){ await moveTo('rail'+r,'gap',{instant:i,lift:30,careful:true}); const o=parts['rail'+r];
+    if (!i){ const lab=addLabel('slide toward you','fly',o,[0,3,0]); const a=o.position.clone(), b=o.userData.homes.rough.pos; o.userData.phase='slide under';
+      await wait(250); await tween(1800, t=>o.position.lerpVectors(a,b,t)); o.userData.phase=null; removeLabel(lab); }
+    place('rail'+r,'rough'); }
+  else await moveTo('rail'+r,'rough',{instant:i,lift:30,careful:true});
+  await tsqOn(f,i);
+  const o=parts['rail'+r], h=o.userData.homes.build;
+  if (i) place('rail'+r,'build');
+  else { const lab=addLabel(`slide to ${mark} cm`,'fly',o,[0,3,0]); o.userData.phase='slide to the mark'; await wait(300); const a=o.position.clone();
+    await tween(1400, t=>o.position.lerpVectors(a,h.pos,t)); place('rail'+r,'build'); o.userData.phase=null; await wait(500); removeLabel(lab); }
+  await driveAll(railBr(r).map(b=>parts[b].userData.postScrew),{instant:i,quick:true}); }
+async function pushNuts(p,i){ // by hand, no measuring: the rails set the exact spot
+  await par(slideLocal(`p${p}x1`,[NUT_D,NUT_H[1],0],{instant:i,dur:900}), slideLocal(`p${p}z1`,[0,NUT_H[1],NUT_D],{instant:i,dur:900}), slideLocal(`p${p}x2`,[NUT_D,NUT_H[2],0],{instant:i,delay:250,dur:1100}), slideLocal(`p${p}z2`,[0,NUT_H[2],NUT_D],{instant:i,delay:250,dur:1100})); if(!i) await wait(250); }
+
+/* ============================== camera ============================== */
+const camState={pos:new THREE.Vector3(0,70,90), tgt:new THREE.Vector3(0,0,0)};
+const DIR={ side:[1,.25,-.3], brk8:[.3,1,.7], topdown:[0.001,1,0.14], alongx:[1,.18,.06], sideposts:[.8,.5,1], railends:[1,.42,.45], chair:[0,.62,1], high:[0,1,.45], low:[0,.28,1], left:[-.9,.55,1], right:[.9,.55,1], lowleft:[-1,.4,1], lowright:[1,.4,1], lowchair:[0,.42,1], far:[0,.75,1] };
+function cam2Rect(W,H,compare=false){
+  if (compare && W>=700){ const pw=Math.round(Math.min(W*0.22, (H-70-16-12)/2/0.95, 400)), ph=Math.round(pw*0.95); return {x:W-pw-16, y:70, w:pw, h:ph*2+12, pw, ph, stack:true}; }   // right/wrong: stacked in a narrow column, the build keeps the rest
+  if (compare){ const pw=Math.round((W-44)/2), ph=Math.round(pw*1.15); return {x:16, y:70, w:pw*2+12, h:ph, pw, ph, stack:false}; }                                    // phone: side by side under the build
+  const w=Math.round(Math.min(560, W*0.4, H*0.5/0.62)), h=Math.round(w*0.62); return {x:W-w-16, y:70, w, h}; }   // bottom-right, above the bar (y from the bottom)
+function fit(ids, dirName='chair', pad=1.25, withCam2=false){
+  const box=new THREE.Box3(); let sph=null;
+  for (const id of ids){
+    if (typeof id==='object' && id.box){ box.union(new THREE.Box3(new THREE.Vector3(...id.box[0]), new THREE.Vector3(...id.box[1]))); continue; }
+    if (typeof id==='object'){ // point focus: {local:[x,y,z]} in frame coordinates, or {world:[x,y,z]}, with radius r
+      const c = id.local ? build.localToWorld(new THREE.Vector3(...id.local)) : new THREE.Vector3(...id.world);
+      sph=new THREE.Sphere(c, id.r||10); continue; }
+    const o= id==='tray'? null : (parts[id]||(id==='build'?build:null)); if (o) box.expandByObject(o);
+  }
+  if (ids.includes('tray')) box.union(new THREE.Box3(new THREE.Vector3(-42,0,-31), new THREE.Vector3(42,8,31)));
+  if (ids.includes('bench')) box.union(new THREE.Box3(new THREE.Vector3(-80,0,-62), new THREE.Vector3(80,20,40)));
+  if (!sph) sph=box.getBoundingSphere(new THREE.Sphere());
+  else box.setFromCenterAndSize(sph.center, new THREE.Vector3(2,2,2).multiplyScalar(sph.radius));
+  const dir=new THREE.Vector3(...DIR[dirName]).normalize();
+  const vfov=camera.fov*Math.PI/180; const hfov=2*Math.atan(Math.tan(vfov/2)*camera.aspect);
+  let dist=sph.radius*pad/Math.sin(Math.min(vfov,hfov)/2)*0.6;
+  // push the camera back until all eight box corners sit inside the view, clear of the text bands
+  const tc=camera.clone(); const corners=[]; for (const x of [box.min.x,box.max.x]) for (const y of [box.min.y,box.max.y]) for (const z of [box.min.z,box.max.z]) corners.push(new THREE.Vector3(x,y,z));
+  const W=renderer.domElement.clientWidth||innerWidth, H=renderer.domElement.clientHeight||innerHeight;
+  const pr=document.getElementById('stepBox').getBoundingClientRect(), bb=document.getElementById('bottom').getBoundingClientRect();
+  const pX=(pr.right+12)/W*2-1, pY=1-(pr.bottom+12)/H*2, yMin=1-(bb.top-14)/H*2;     // the panel's corner and the bar's top, in view coordinates
+  // with Cam 2 on screen the build keeps to the part of the view left of it: the camera slides sideways so the build sits centred there
+  const cr = withCam2 ? cam2Rect(W,H,withCam2==='compare') : null, narrow = cr && cr.w > W*0.6;      // on a phone the insets span the width: keep the build above them instead
+  const xMax = cr && !narrow ? (cr.x-14)/W*2-1 : 0.92, xMid=(xMax-0.92)/2, tanH=Math.tan(hfov/2);
+  const yMin2 = narrow ? Math.max(yMin, 1-(H-cr.y-cr.h-12)/H*2) : yMin;
+  const shiftAt=d=>new THREE.Vector3(1,0,0).applyQuaternion(tc.quaternion).multiplyScalar(-xMid*d*tanH);
+  const okAt=d=>{ tc.position.copy(sph.center).addScaledVector(dir,d); tc.lookAt(sph.center); tc.position.add(shiftAt(d)); tc.updateMatrixWorld(true);
+    return corners.every(c=>{ const q=c.clone().project(tc); return q.x>=-0.92 && q.x<=xMax && q.y>=yMin2 && q.y<=0.92 && q.z<1 && !(q.x<pX && q.y>pY); }); };
+  for (let n=0;n<80 && !okAt(dist);n++) dist*=1.06;
+  if (parts.mag && parts.mag.visible && parts.mag.userData.home==='storage'){ // keep the magnifier on screen too, unless that would push the camera far back
+    const mb=new THREE.Box3().setFromObject(parts.mag), c0=corners.length; for (const x of [mb.min.x,mb.max.x]) for (const y of [mb.min.y,mb.max.y]) for (const z of [mb.min.z,mb.max.z]) corners.push(new THREE.Vector3(x,y,z));
+    let d2=dist; for (let n=0;n<40 && !okAt(d2);n++) d2*=1.06; if (d2<=dist*1.35) dist=d2; else corners.length=c0; }
+  dist*=Math.max(1, pad);
+  tc.position.copy(sph.center).addScaledVector(dir,dist); tc.lookAt(sph.center); const sh=shiftAt(dist);
+  return {pos:sph.center.clone().addScaledVector(dir,dist).add(sh), tgt:sph.center.clone().add(sh)};
+}
+function flyTo(target, instant){
+  if (instant){ camState.pos.copy(target.pos); camState.tgt.copy(target.tgt); return; }
+  const p0=camState.pos.clone(), t0=camState.tgt.clone();
+  return tween(1400, t=>{ camState.pos.lerpVectors(p0,target.pos,t); camState.tgt.lerpVectors(t0,target.tgt,t); }, 'cam');
+}
+
+/* ============================== labels ============================== */
+const labelsEl=document.getElementById('labels');
+const labels=[]; // {el, obj|point, offset}
+function addLabel(text, cls, anchor, offset=[0,0,0]){ const el=document.createElement('div'); el.className='lbl '+cls; el.textContent=text; labelsEl.appendChild(el); const l={el,anchor,offset:new THREE.Vector3(...offset)}; labels.push(l); return l; }
+function removeLabel(l){ const i=labels.indexOf(l); if(i>=0){ labels.splice(i,1); l.el.remove(); } }
+function clearLabels(cls){ for (let i=labels.length-1;i>=0;i--){ if(!cls||labels[i].el.classList.contains(cls)){ labels[i].el.remove(); labels.splice(i,1);} } }
+const v=new THREE.Vector3();
+function updateLabels(){
+  const w=renderer.domElement.clientWidth, h=renderer.domElement.clientHeight;
+  for (const l of labels){
+    if (l.anchor.isObject3D){ l.anchor.getWorldPosition(v); } else v.copy(l.anchor);
+    v.add(l.offset).project(camera);
+    const x=(v.x+1)/2*w, y=(1-v.y)/2*h; const ms=magScreen();
+    const vis=v.z<1 && !(ms && Math.hypot(x-ms.x,y-ms.y)<ms.r); l.el.style.display=vis?'':'none'; if(!vis) continue;
+    l.el.style.left=x+'px'; l.el.style.top=y+'px';
+  }
+}
+function trayLabels(){
+  clearLabels('tray');
+  const c={post:0,rail:0,nut:0,brk:0,foot:0};
+  for (const id in parts){ const o=parts[id]; if (o.userData.home==='storage'){ const k=o.userData.kind; if(k==='post')c.post++; else if(k==='rail')c.rail++; else if(k==='nut')c.nut++; else if(k==='bracket')c.brk++; else if(k==='foot')c.foot++; } }
+  const screws=SCREWS.filter(s=>!s.visible).length;
+  const txt={long:`posts ${c.post} · rails ${c.rail}`, nuts:`T-nuts ${c.nut}`, screws:`screws ${screws}`, brk:`brackets ${c.brk}`, small:`feet ${c.foot} · foot screws ${FOOT_SCREWS.filter(s=>!s.visible).length}`};
+  for (const t of TRAY_LABELS) addLabel(txt[t.id],'tray',new THREE.Vector3(...t.p));
+}
+
+/* ============================== part icons ============================== */
+const ICONS={};
+{ const r=new THREE.WebGLRenderer({antialias:true, alpha:true, preserveDrawingBuffer:true}); r.setPixelRatio(2); r.setSize(88,88);
+  const sc=new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff,0x8a847a,0.9)); const d=new THREE.DirectionalLight(0xffffff,.6); d.position.set(1,2,1.5); sc.add(d);
+  const cam=new THREE.PerspectiveCamera(28,1,0.1,500);
+  const spec={ post:()=>mesh(G.post,M.alu), rail:()=>mesh(G.rail,M.alu), nut:()=>tnutMesh(G.nutYp), screw:()=>{const g=screwObj(); g.visible=true; return g;}, bracket:()=>bracketObj(), foot:()=>mesh(G.foot,M.rubber), fscrew:()=>{const g=footScrewObj(); g.visible=true; return g;}, note:()=>noteObj('',3) };
+  for (const k in spec){ const o=spec[k](); sc.add(o); o.updateMatrixWorld(true);
+    const b=new THREE.Box3().setFromObject(o); const c=b.getCenter(new THREE.Vector3()); const R=b.getSize(new THREE.Vector3()).length()/2;
+    const dirv = k==='post' ? new THREE.Vector3(0.7,1.6,0.9) : k==='rail' ? new THREE.Vector3(1.6,0.8,0.9) : new THREE.Vector3(1,0.9,1.3);
+    cam.position.copy(c).add(dirv.normalize().multiplyScalar(R/Math.sin(cam.fov*Math.PI/360)*0.9)); cam.lookAt(c); cam.updateProjectionMatrix();
+    r.render(sc,cam); ICONS[k]=r.domElement.toDataURL(); sc.remove(o); }
+  r.dispose(); }
+const partsRow=document.getElementById('partsRow');
+const PART_NAMES={post:'post',rail:'rail',nut:'T-nut',screw:'screw',bracket:'bracket',foot:'foot',fscrew:'foot screw',note:'note'};
+function showParts(p){ const ks=Object.keys(p||{}).filter(k=>p[k]>0); partsRow.hidden=ks.length===0; if(!ks.length){ partsRow.innerHTML=''; return; }
+  partsRow.innerHTML=ks.map(k=>`<div class="item"><img src="${ICONS[k]}" alt="${PART_NAMES[k]}"><span class="n">×${p[k]}</span></div>`).join(''); }
+
+/* ============================== steps ============================== */
+const postIds=[0,1,2,3].map(i=>'post'+i);
+const railIds=n=>Array.from({length:n},(_,i)=>'rail'+i);
+const POST_NUTS_X=i=>[0,1,2].map(k=>`p${i}x${k}`), POST_NUTS_Z=i=>[0,1,2].map(k=>`p${i}z${k}`);
+const RAIL_NUTS_A=i=>[0,1,2].map(k=>`r${i}a${k}`);
+const postBr=i=>[`b_p${i}x`,`b_p${i}z`];
+const railBr=i=>[`b_r${i}L`,`b_r${i}R`];
+const PHASE_WHY={
+  ready:'Everything you need is in the trays. The box rail, with its three extra nuts, is the one part that tells the front of the frame from the back.',
+  posts:'A T-nut can only enter a groove from its open end, and it slides wherever gravity takes it. Load everything while it lies flat.',
+  rails:'Once a rail sits between two posts both its ends are covered for good. Every nut a rail will ever need goes in now.',
+  brackets:'Top-level brackets go on the posts; the rest go on the rails. That way, whenever you drive a screw, the nut it needs is in a horizontal groove and cannot have slid away.',
+  top:'The table holds the four top rails flat. A post standing on its head needs one hand on it until its first screw is in, then it stands by itself.',
+  back:'Whichever face it lies on, every post groove stays horizontal: loose nuts stay where you push them. Roll the frame so each rail you fit lies on the table, right in front of you: gravity holds it while you measure. A rail that ends up standing lets its loose nuts slide down; the posts at its ends keep them in.',
+  up:'Stood on its top, every joint can be reached and each foot sits on its post end by itself while you screw it. The frame turns the right way up once, at the very end.',
+  done:'That is the whole frame.',
+};
+// a post goes head-down: carried level, head set at its corner, tipped up. Its two loose nuts slide to the bracket screw (never out of the foot).
+async function standPost(p,i){
+  const id='post'+p, o=parts[id], h=o.userData.homes.build;
+  const slides=[{id:`p${p}x1`,to:[NUT_D,NUT_H[0]-1,0]},{id:`p${p}z1`,to:[0,NUT_H[0]-1,NUT_D]},{id:`p${p}x2`,to:[NUT_D,NUT_H[0]-2,0]},{id:`p${p}z2`,to:[0,NUT_H[0]-2,NUT_D]}];
+  if (i){ place(id,'build'); for (const sl of slides) parts[sl.id].position.set(...sl.to); return; }
+  const {p:p1,q:q1}=worldOf(h.parent,h.pos,h.quat);
+  const head=new THREE.Vector3(0,POST_L,0), H1=head.clone().applyQuaternion(q1).add(p1);       // head end on the tray, final
+  const [sx,sz]=CORNERS[p]; const out=new THREE.Vector3(sx,0,sz).applyQuaternion(build.quaternion); out.y=0; out.normalize();
+  // choose where to hold it level and turn it head-down: beside the corner, foot pointing somewhere with nothing in the way
+  scene.attach(o); const ps=o.position.clone(), qs=o.quaternion.clone();
+  let Hh=null, k=null, qL=null, bestScore=-Infinity;
+  const sk=bakeKey('stand'), sb=BAKED&&BAKED[sk];
+  if (sb){ Hh=V3(sb.H); k=V3(sb.k); qL=new THREE.Quaternion(...sb.q); }
+  else { if (BAKED) console.warn('stand-up not recorded:', sk);
+  const pr=probesOf(o), obs=obstacles(o), own=[new THREE.Vector3(-1,0,-1),new THREE.Vector3(1,POST_L,1)];
+  const fin=new Set(); for (const ob of obs){ const c=clearance(pr,p1,q1,[ob],null,own); if (c<0.2) fin.add(ob.o); }
+  const view=camState.tgt.clone().sub(camState.pos); view.y=0; view.normalize();
+  const dirs=[out, new THREE.Vector3(Math.sign(out.x),0,0), new THREE.Vector3(0,0,Math.sign(out.z)), new THREE.Vector3(-out.z,0,out.x), new THREE.Vector3(out.z,0,-out.x)]
+    .sort((a,b)=>Math.abs(a.dot(view))-Math.abs(b.dot(view)));
+  search: for (const H of [5,8,12,16]) for (const d of dirs){
+    const hh=H1.clone().addScaledVector(out,6).add(new THREE.Vector3(0,H,0)); const kk=new THREE.Vector3().crossVectors(Y,d).normalize(); const ql=qMul(qAA(kk,Math.PI/2),q1);
+    let worst=Infinity; const pose=(q,hd)=>hd.clone().sub(head.clone().applyQuaternion(q));
+    for (let j=0;j<=12;j++){ const q=qMul(qAA(kk,-Math.PI/2*j/12),ql); worst=Math.min(worst, clearance(pr,pose(q,hh),q,obs,null,own)); }
+    const above=new THREE.Vector3(H1.x,hh.y,H1.z);
+    for (let j=0;j<=8;j++){ worst=Math.min(worst, clearance(pr,pose(q1,hh.clone().lerp(above,j/8)),q1,obs,null,own)); }
+    for (let j=0;j<=10;j++){ const hd=above.clone().lerp(H1,j/10); worst=Math.min(worst, clearance(pr,pose(q1,hd),q1,obs, hd.y-H1.y<2.5?fin:null,own)); }
+    if (worst>bestScore){ bestScore=worst; Hh=hh; k=kk; qL=ql; }
+    if (worst>=-0.01) break search; }
+  window.__bake.push([sk,{H:Hh.toArray().map(v=>+v.toFixed(5)),k:k.toArray().map(v=>+v.toFixed(6)),q:qL.toArray().map(v=>+v.toFixed(7))}]); }
+  const pL=Hh.clone().sub(head.clone().applyQuaternion(qL));
+  const rmCaps=addCaps(o); const lab=addLabel(CAREFUL,'fly',o,[0,3,0]);
+  const plan=planCarry(o,ps,qs,pL,qL,{minLift:3}); o.userData.phase='carry (standPost) c='+plan.clear.toFixed(2); await tween((700+plan.len*22)*1.6, t=>plan.at(t)); o.userData.phase='standPost tip';
+  lab.el.textContent='head down, never foot down: the T-nuts slide to the bracket'; await wait(500);
+  const sa=slides.map(sl=>({o:parts[sl.id], from:parts[sl.id].position.clone(), to:new THREE.Vector3(...sl.to)}));
+  await tween(1800, t=>{ const q=qMul(qAA(k,-Math.PI/2*t),qL); o.quaternion.copy(q); o.position.copy(Hh).sub(head.clone().applyQuaternion(q));
+    const u=Math.max(0,(t-0.35)/0.65); for (const a of sa) a.o.position.lerpVectors(a.from,a.to,ease(u)); });
+  lab.el.textContent='over the corner, then straight down';
+  const pV=o.position.clone(), pA=new THREE.Vector3(p1.x,pV.y,p1.z);
+  await tween(1100, t=>o.position.lerpVectors(pV,pA,ease(t)));
+  await tween(900, t=>o.position.lerpVectors(pA,p1,ease(t)));
+  place(id,'build'); for (const a of sa) a.o.position.copy(a.to); removeLabel(lab); rmCaps(); o.userData.phase=null; }
+// a side rail: carried level (its single loose nut would slide out of an open end), one end set on the lower post, tipped up on it
+async function standRail(r,i){ const o=parts['rail'+r], h=o.userData.homes.build; const {p:p1,q:q1}=worldOf(h.parent,h.pos,h.quat);
+  const yL=new THREE.Vector3(-RAIL_L/2,0,0).applyQuaternion(q1).add(p1).y, yR=new THREE.Vector3(RAIL_L/2,0,0).applyQuaternion(q1).add(p1).y;
+  const lowX = yL<yR ? -RAIL_L/2 : RAIL_L/2; const sgn=Math.sign(lowX);
+  const side=r%4; const d=[side===2?-1:1,0,0];
+  await standPart('rail'+r,{instant:i, restY:1, gap:1.0, lowLocal:[lowX,0,0], d, label:'keep it LEVEL: a loose nut can slide out of the end', label2:'end on the post first, then tip it up',
+    slides:[{id:`r${r}a1`,to:[sgn*(RAIL_L/2-HOLE-1),-NUT_D,0]},{id:`r${r}b`,to:[sgn*(RAIL_L/2-0.6),NUT_D,0]}]}); }
+const ALL_SCREWS_BY_RAIL=i=>railBr(i).flatMap(b=>[parts[b].userData.railScrew]);
+
+const STEPS=[
+ // ---- ready
+ {ph:'ready', s:'The parts and tools for the frame.', n:'Posts and rails are the same 20 × 20 mm aluminium profile, cut to two lengths.', cam:[[{box:[[-78,0,-65],[16,2,-34]]}],'far',0.95], trays:true, parts:{},
+  marks:()=>{ dimLine(parts.post3,[1.7,0,0],[1.7,POST_L,0],[1,0,0],'post · 30.9 cm'); dimLine(parts.rail11,[-RAIL_L/2,-1.7,0],[RAIL_L/2,-1.7,0],[0,-1,0],'rail · 20.3 cm');
+    addLabel('T-square','dim',parts.tsq,[0,2.5,0]); addLabel('Allen key','dim',parts.key,[0,2.5,0]); },
+  run:async()=>{} },
+ {ph:'ready', s:'You build in the tray nearest you.', n:'The magnifier is in that tray. Click it to pick it up and look closer; click again to put it down. So does the magnifier button below.', cam:['tray','chair',1.0], parts:{}, magHint:true,
+  marks:()=>addLabel('magnifier','dim',parts.mag,[0,3,0]),
+  run:async()=>{} },
+ // ---- posts
+ {ph:'posts', s:'Put the 4 posts in the work tray, side by side.', cam:['tray','chair',1.1], parts:{post:4},
+  run:async i=>{ await par(...postIds.map((id,k)=>moveTo(id,'stage',{instant:i,delay:k*650,label:k===0?'post ×4':null}))); } },
+ {ph:'posts', s:'Load 3 T-nuts into the top groove of each post.', n:'Flat side up under the lips, the stem of the T pointing down into the beam. Not the other way up.', rep:'×4', cam:[postIds,'chair',1.0], cam2:{compare:'tnut'}, parts:{nut:12},
+  run:async i=>{ const ids=[]; for(let k=0;k<3;k++) for(let p=0;p<4;p++) ids.push(`p${p}x${k}`); await par(...ids.map((id,n)=>slideNut(id,{instant:i,delay:n*140,label:n===0?'T-nut ×12':null}))); } },
+ {ph:'posts', s:'Roll each post a quarter turn to the right.', rep:'×4', cam:[postIds,'chair',1.25], parts:{},
+  marks:()=>postIds.forEach(id=>rollArrow(parts[id],Y,Math.PI/2)),
+  run:async i=>{ if(!i) await wait(700); await par(...postIds.map((id,k)=>roll(id,Y,Math.PI/2,{instant:i,delay:k*450}))); } },
+ {ph:'posts', s:'Load 3 T-nuts into the new top groove of each post.', n:'Same way up as before: flat side under the lips, stem pointing into the beam.', rep:'×4', cam:[postIds,'chair',1.0], cam2:{compare:'tnut'}, parts:{nut:12},
+  run:async i=>{ const ids=[]; for(let k=0;k<3;k++) for(let p=0;p<4;p++) ids.push(`p${p}z${k}`); await par(...ids.map((id,n)=>slideNut(id,{instant:i,delay:n*140,label:n===0?'T-nut ×12':null}))); } },
+ {ph:'posts', check:{items:()=>postIds.map((id,i)=>({id, at:[NUT_D,NUT_H[2],NUT_D], q:`Post ${i+1}: 3 T-nuts in each of these two neighbouring grooves.`}))}, s:'Each post has 3 T-nuts in each of two neighbouring grooves.', n:'Not in opposite grooves.', cam:[[{box:[[-38.5,0,4],[-16,2.2,17]]}],'sideposts',1.0], parts:{},
+  run:async()=>{} },
+ {ph:'brackets', s:'Lay one rail across the posts, flush with their far ends, as a guide.', cam:[[{box:[[-39,0,-16],[-15.5,4.5,-4]]}],'brk8',1.0], cam2:{ortho:true, at:[-27,2,-13.9], dir:[1,0,0], size:3.1, dist:11.5, far:23.5, line:[[-16,-0.9,-14.9],[-16,5,-14.9]], ground:[-16.2,0,-30,10]}, parts:{rail:1},
+  run:async i=>{ showGhost('rail0','guide'); await moveTo('rail0','guide',{instant:i,lift:16,dur:1100,label:'guide rail'}); clearGhosts(); } },
+ {ph:'brackets', s:'Fix a bracket on each loaded groove, against the guide, with one screw into the post.', n:'Snug only. Every screw is tightened at the end.', rep:'×8', cam:[[{box:[[-39,0,-16],[-15.5,4.5,-4]]}],'brk8',1.0], cam2:{ortho:true, at:[-27.25,2,-12.6], dir:[0,1,0.0001], size:6.5}, parts:{bracket:8,screw:8},
+  run:async i=>{ const b=[0,1,2,3].flatMap(postBr); for (let n=0;n<b.length;n++) await moveTo(b[n],'on',{instant:i,approach:APPROACH.bracketPost,label:n===0?'bracket ×8':null}); await driveAll(b.map(id=>parts[id].userData.postScrew),{instant:i,quick:false}); } },
+ {ph:'brackets', s:'Remove the guide and put a HEAD note on the guide end of each post.', cam:[[{box:[[-39,0,-16],[-15.5,4.5,-4]]}],'brk8',1.0], parts:{note:4},
+  run:async i=>{ await moveTo('rail0','storage',{instant:i,lift:16,dur:1100}); await par(...[0,1,2,3].map(k=>moveTo('n_head'+k,'on',{instant:i,delay:k*200,label:k===0?'HEAD note ×4':null}))); } },
+ {ph:'posts', s:'Put the posts back in the long tray.', cam:['tray','far',1.0], parts:{},
+  run:async i=>{ await par(...postIds.map((id,k)=>moveTo(id,'storage',{instant:i,delay:k*1400,careful:true,label:k===0?CAREFUL:null}))); } },
+ // ---- rails
+ {ph:'rails', s:'Put the 12 rails in the work tray.', cam:['tray','chair',1.05], parts:{rail:12},
+  run:async i=>{ const col=async ids=>{ for (const id of ids) await moveTo(id,'stage',{instant:i,label:id==='rail0'?'rail ×12':null}); }; await par(col(railIds(6)), col(railIds(12).slice(6))); } },
+ {ph:'rails', s:'Load 3 T-nuts into the top groove of each rail: one near each end, one in the middle.', rep:'×12', cam:[railIds(12),'chair',1.15], parts:{nut:36},
+  run:async i=>{ const ids=[]; for(let k=2;k>=0;k--) for(let r=0;r<12;r++) ids.push(`r${r}a${k}`); await par(...ids.map((id,n)=>slideNut(id,{instant:i,delay:n*70,label:n===0?'T-nut ×36':null}))); } },
+ {ph:'rails', s:'Roll each rail a half turn, so those T-nuts face down.', rep:'×12', cam:[railIds(12),'railends',1.0], parts:{},
+  marks:()=>railIds(12).forEach(id=>rollArrow(parts[id],X,Math.PI)),
+  run:async i=>{ if(!i) await wait(700); await par(...railIds(12).map((id,k)=>roll(id,X,Math.PI,{instant:i,delay:k*300}))); } },
+ {ph:'rails', s:'Load 1 T-nut into the new top groove of each rail, in the middle.', rep:'×12', cam:[railIds(12),'chair',1.15], parts:{nut:12},
+  run:async i=>{ await par(...railIds(12).map((r,n)=>slideNut(`r${n}b`,{instant:i,delay:n*90,label:n===0?'T-nut ×12':null}))); } },
+ {ph:'rails', s:'Make one rail the box rail: 3 more T-nuts in a side groove, and a BOX RAIL note.', n:'Any rail will do. Roll it a quarter turn away from you first.', cam:[['rail5'],'railends',1.4], parts:{nut:3,note:1},
+  marks:()=>rollArrow(parts.rail5,X,-Math.PI/2),
+  run:async i=>{ if(!i) await wait(700); await roll('rail5',X,-Math.PI/2,{instant:i}); await par(...[0,1,2].map(k=>slideNut(`r5c${k}`,{instant:i,delay:k*220,label:k===0?'T-nut ×3':null}))); await moveTo('n_box','on',{instant:i,label:'BOX RAIL note'}); } },
+ {ph:'rails', s:'Roll the box rail back a quarter turn, toward you.', n:'Its 3 main T-nuts face down again, like the other rails; the 3 extra ones face you.', cam:[['rail5'],'railends',1.4], parts:{},
+  marks:()=>rollArrow(parts.rail5,X,Math.PI/2),
+  run:async i=>{ if(!i) await wait(700); await roll('rail5',X,Math.PI/2,{instant:i}); } },
+ {ph:'rails', check:{items:()=>railIds(12).map((id,r)=>({id, at:[RAIL_L/2-HOLE,0,0], q: r===5?'Box rail: 3 T-nuts facing down, 1 facing up, 3 on the side.':`Rail ${r+1}: 3 T-nuts facing down, 1 facing up.`}))}, s:'Each rail has 3 T-nuts on one side and 1 on the opposite side.', n:'The box rail has 3 more on a third side.', cam:[railIds(12),'railends',1.0], parts:{},
+  run:async()=>{} },
+ // ---- brackets on rails
+ {ph:'brackets', s:'Set 4 plain rails aside as the top rails.', cam:['tray','chair',1.05], parts:{note:1},
+  run:async i=>{ await par(...railIds(4).map((id,k)=>moveTo(id,'aside',{instant:i,delay:k*500,careful:true,label:k===0?CAREFUL:null}))); await moveTo('n_aside','on',{instant:i,label:'note'}); } },
+ {ph:'brackets', s:'Fit a bracket on both ends of the other 8 rails, with one screw into the rail.', n:'Roll each one a half turn first, so its 3-nut side faces up. Snug only.', rep:'×8', cam:[railIds(12).slice(4),'railends',1.05], parts:{bracket:16,screw:16},
+  marks:()=>railIds(12).slice(4).forEach(id=>rollArrow(parts[id],X,Math.PI)),
+  run:async i=>{ if(!i) await wait(700); await par(...railIds(12).slice(4).map(async (id,k)=>{ await roll(id,X,Math.PI,{instant:i,delay:k*300}); parts[id].quaternion.copy(parts[id].userData.homes.stage.quat); })); const b=[]; for(let r=4;r<12;r++) b.push(...railBr(r)); await par(...b.map((id,n)=>moveTo(id,'on',{instant:i,approach:APPROACH.bracketRail,delay:n*120,label:n===0?'bracket ×16':null}))); await driveAll(b.map(id=>parts[id].userData.railScrew),{instant:i,quick:true,fastAfter:4}); } },
+ {ph:'brackets', s:'Put 7 of these rails back in the long tray.', n:'The box rail stays out, at the back-right of the work tray, note up. It goes on first.', cam:['tray','far',1.0], parts:{},
+  run:async i=>{ await moveTo('rail5','apart',{instant:i,careful:true,label:'box rail · note up'}); await par(...railIds(12).slice(4).filter(id=>id!=='rail5').map((id,k)=>moveTo(id,'storage',{instant:i,delay:k*450,careful:true,label:k===0?CAREFUL:null}))); } },
+ // ---- top square, inverted
+ {ph:'top', s:'Lay the 4 top rails in a square, 3-nut groove up, with a gap at each corner for a post.', n:'This is the top of the frame, upside down.', cam:['tray','chair',1.05], parts:{rail:4,note:1},
+  run:async i=>{ setPose('inverted'); build.visible=true; await moveTo('n_aside','storage',{instant:i}); await par(...railIds(4).map((id,k)=>moveTo(id,'build',{instant:i,delay:k*1600,careful:true,label:k===0?CAREFUL:null}))); await moveTo('n_top','on',{instant:i,label:'note'}); } },
+ {ph:'top', hold:'post0', s:'Stand a post head down in the far-left corner, brackets against the two rails.', n:'Take its HEAD note off. Hold the post until it is screwed.', cam:['build','left',1.15], parts:{post:1},
+  run:async i=>{ await moveTo('n_head0','storage',{instant:i}); showGhost('post0','build'); await standPost(0,i); clearGhosts(); } },
+ {ph:'top', s:'Screw both brackets down into the rails.', n:'Snug only.', cam:[[{local:[-HALF,31.5,HALF],r:9}],'left',1.1], parts:{screw:2},
+  run:async i=>{ await driveAll(postBr(0).map(b=>parts[b].userData.railScrew),{instant:i,quick:false}); } },
+ {ph:'top', s:'Do the same with the other three posts.', rep:'×3', cam:['build','chair',1.15], parts:{post:3,screw:6},
+  run:async i=>{ for (const p of [1,3,2]){ await moveTo('n_head'+p,'storage',{instant:i}); showGhost('post'+p,'build'); await standPost(p,i); clearGhosts();
+      await driveAll(postBr(p).map(b=>parts[b].userData.railScrew),{instant:i,quick:true}); if(!i) await wait(250); } } },
+ {ph:'top', check:{items:()=>postIds.map((id,i)=>({id, at:[0,POST_L-3,0], q:`Post ${i+1}: both screws in, standing straight, no wobble.`}))}, s:'All four posts stand straight and none of them wobbles.', cam:['build','high',1.1], parts:{},
+  run:async()=>{} },
+ // ---- on its back
+ {ph:'back', hands:'two hands', s:'Tip the frame toward you so it lies down, feet toward you.', n:'Two hands, on the two near posts.', cam:['tray','far',1.0], parts:{},
+  run:async i=>{ await moveTo('n_top','storage',{instant:i}); await tipBuild('lying', new THREE.Vector3(0,0,-16+12.16), X, Math.PI/2, {instant:i}); } },
+ {ph:'back', s:'Leave the frame where it is, right in front of you.', cam:['tray','far',1.0], parts:{note:1},
+  run:async i=>{ await moveTo('n_back','on',{instant:i,label:'note'}); } },
+ {ph:'back', s:'Slide the loose T-nuts in each post toward the feet: one to about halfway, one to about 6 cm from the foot.', n:'No need to measure. The rails set the exact spot.', rep:'×4', cam:['build','lowleft',1.05], parts:{},
+  run:async i=>{ for (const p of [3,2,0,1]) await pushNuts(p,i); } },
+ {ph:'back', s:'Fit the box rail between the two lower posts, its far edge at <b>13 cm</b> from the head end.', n:'Note and box nuts face down. This side becomes the front.', cam:['build','lowleft',1.05], cam2:measureCam('back',13), parts:{rail:1,screw:2},
+  run:i=>measureRail(5,'back',13,i) },
+ {ph:'back', s:'Fit a bottom rail on the same side, its far edge at <b>26 cm</b>.', n:'Its tabs point away from you.', cam:['build','lowleft',1.05], cam2:measureCam('back',26), parts:{rail:1,screw:2},
+  run:i=>measureRail(8,'back',26,i) },
+ {ph:'back', hands:'two hands', s:'Roll the frame a quarter turn onto its left side.', n:'T-square off first. Slide the frame to your right before rolling, so it ends up in front of you.', cam:['tray','far',1.0], parts:{},
+  run:async i=>{ await tsqOff('park',i); await moveTo('n_back','storage',{instant:i}); await rollFrame(-1,'left',i); } },
+ {ph:'back', s:'Fit a middle rail on this side at <b>13 cm</b>.', cam:['build','lowleft',1.05], cam2:measureCam('left',13), parts:{rail:1,screw:2},
+  run:i=>measureRail(6,'left',13,i) },
+ {ph:'back', s:'Fit a bottom rail at <b>26 cm</b>.', n:'Its tabs point away from you.', cam:['build','lowleft',1.05], cam2:measureCam('left',26), parts:{rail:1,screw:2},
+  run:i=>measureRail(10,'left',26,i) },
+ {ph:'back', hands:'two hands', s:'Roll the frame onto its right side.', n:'T-square off first. Two quarter turns, back over the box rail side; slide it back in front of you after each.', cam:['tray','far',1.0], parts:{},
+  run:async i=>{ await tsqOff('park',i); await rollFrame(1,'lying',i); if(!i) await wait(400); await rollFrame(1,'right',i); } },
+ {ph:'back', s:'Fit a middle rail on this side at <b>13 cm</b>.', n:'A rail is right above its spot: lower it in just beyond that rail, then slide it toward you.', cam:['build','lowright',1.05], cam2:measureCam('right',13), parts:{rail:1,screw:2},
+  run:i=>measureRail(7,'right',13,i) },
+ {ph:'back', s:'Fit a bottom rail at <b>26 cm</b>.', n:'Lower it in between the two rails above, then slide it toward you. Its tabs point away from you.', cam:['build','lowright',1.05], cam2:measureCam('right',26), parts:{rail:1,screw:2},
+  run:i=>measureRail(11,'right',26,i) },
+ {ph:'back', hands:'two hands', s:'Roll the frame a quarter turn so the last open side is down.', n:'T-square off first.', cam:['tray','far',1.0], parts:{},
+  run:async i=>{ await tsqOff('park',i); await rollFrame(1,'front',i); } },
+ {ph:'back', s:'Fit a middle rail on this side at <b>13 cm</b>.', n:'The box rail is right above its spot: lower it in just beyond the box rail, then slide it toward you.', cam:['build','lowright',1.05], cam2:measureCam('front',13), parts:{rail:1,screw:2},
+  run:i=>measureRail(4,'front',13,i) },
+ {ph:'back', s:'Fit a bottom rail at <b>26 cm</b>.', n:'Lower it in between the two rails above, then slide it toward you. Its tabs point away from you.', cam:['build','lowright',1.05], cam2:measureCam('front',26), parts:{rail:1,screw:2},
+  run:i=>measureRail(9,'front',26,i) },
+ {ph:'back', check:{items:()=>[0,1,2,3].map(i=>({id:'post'+i, at:[0,1.5,0], q:`Corner ${i+1}: both rails here screwed in.`})).concat([{id:'post0', at:[0,15,0], q:'Nothing in the work tray but the frame and the magnifier.'}])}, s:'Every rail has two screws, and nothing is loose in the tray.', n:'T-square back in the long tray first.', cam:['build','far',1.05], parts:{},
+  run:async i=>{ await tsqOff('storage',i); } },
+ // ---- finish upside down: tighten, feet, then right way up
+ {ph:'up', hands:'two hands', s:'Stand the frame on its head.', n:'Lift the end nearest you up and over the far end, onto the top, then slide it back toward you. The box rail ends up on the far side.', cam:['tray','far',1.2], parts:{},
+  run:async i=>{ await moveTo('n_back','storage',{instant:i}); await tipBuild('headTip', new THREE.Vector3(0,0,POSE.front.pos.z-TOP_Y), X, -Math.PI/2, {instant:i, dur:3200}); if(!i) await wait(300); await slideBuild('headDown',{instant:i, dur:1800}); } },
+ {ph:'up', s:'Tighten every screw, level by level.', n:'Check that the top is square with the T-square first.', rep:'×48', cam:['build','chair',1.05], parts:{},
+  run:async i=>{ if(i) return; await driveAll(SCREWS,{quick:false,tighten:true,fastAfter:3,fastScale:0.15}); } },
+ {ph:'up', s:'Screw a rubber foot onto each foot end.', n:'Upside down, each foot sits on its post end while you screw it. Feet have their own silver screws, in the feet tray, not the bracket screws.', cam:['build','high',1.1], parts:{foot:4,fscrew:4},
+  run:async i=>{
+    for (const k of [0,1,2,3]){ await moveTo('foot'+k,'on',{instant:i,approach:APPROACH.foot,label:k===0?'foot ×4':null}); await flyFootScrew(k,i); await driveScrew(FOOT_SCREWS[k],{instant:i,quick:k>0,first:k===0,last:k===3}); } } },
+ {ph:'up', hands:'two hands', s:'Turn the frame the right way up, onto its feet.', n:'Lift it and turn it over sideways. Then peel the BOX RAIL note off.', cam:['tray','far',1.25], parts:{},
+  run:async i=>{ await flipUpright(i); if(!i) await wait(400); await peelNote('n_box',i); } },
+ {ph:'done', s:'Well done: the gLOWCOST frame is built.', n:'Bag what is left in the trays. The detector layers go in next.', cam:['build','chair',1.15], parts:{},
+  run:async i=>{ if (i || VCLOCK!==null) return; const c=camState.tgt.clone(), r0=camState.pos.clone().sub(c);   // a slow look around the finished frame, from your side of the table
+    await tween(9000, (e,t)=>{ camState.pos.copy(r0).applyAxisAngle(new THREE.Vector3(0,1,0), 0.6*Math.sin(2*Math.PI*t)).add(c); }, 'cam'); } },
+];
+
+/* ============================== runner ============================== */
+const elN=document.getElementById('n'), elTotal=document.getElementById('total'), elRep=document.getElementById('rep'), elS=document.getElementById('sentence');
+const bBack=document.getElementById('back'), bRestart=document.getElementById('restart'), bSkip=document.getElementById('skip'), bNext=document.getElementById('next');
+const elWhy=document.getElementById('why'), elNote=document.getElementById('note');
+elTotal.textContent=STEPS.length;
+let cur=0, busy=false, animating=false, reversing=false, checkLeft=null, checkItems=null, checkIdx=0, cam2=null;
+/* ---------- cancelling, recording and playing a step backwards ---------- */
+let epoch=0, live=null, HOLD=false, backQueued=0;
+function cancelStep(){ for (const a of [...anims]) if (a.grp==='step'||a.grp==='cam') anims.delete(a); epoch++; animating=false; TSCALE=1; }   // its async code waits on tweens that never finish: it simply stops
+const TRACK=[...Object.values(parts).filter(o=>o.userData.id!=='mag'), ...SCREWS, ...FOOT_SCREWS, build];
+const PARENTS=[scene, build, ...Object.values(parts), ...BRK_IDS.map(id=>parts[id])], PIDX=new Map(PARENTS.map((o,i)=>[o,i]));
+function capture(t){ const n=TRACK.length, f=new Float32Array(n*8), pa=new Int16Array(n);
+  for (let i=0;i<n;i++){ const o=TRACK[i], j=i*8; f[j]=o.position.x; f[j+1]=o.position.y; f[j+2]=o.position.z; f[j+3]=o.quaternion.x; f[j+4]=o.quaternion.y; f[j+5]=o.quaternion.z; f[j+6]=o.quaternion.w; f[j+7]=o.visible?1:0; const q=PIDX.get(o.parent); pa[i]=q===undefined?-1:q; }
+  return {t,f,pa}; }
+function applyFrame(fr){ for (let i=0;i<TRACK.length;i++){ const o=TRACK[i], j=i*8, P=PARENTS[fr.pa[i]]; if (P && o.parent!==P) P.add(o);
+  o.position.set(fr.f[j],fr.f[j+1],fr.f[j+2]); o.quaternion.set(fr.f[j+3],fr.f[j+4],fr.f[j+5],fr.f[j+6]); o.visible=fr.f[j+7]>0.5; } }
+const yieldTask=(()=>{ const ch=new MessageChannel(), q=[]; ch.port1.onmessage=()=>{ const r=q.shift(); if(r) r(); }; return ()=>new Promise(r=>{ q.push(r); ch.port2.postMessage(0); }); })();
+async function recordStep(k){ // play step k on a virtual clock, nothing drawn, keeping a frame every 1/30 s
+  HOLD=true; labelsEl.style.visibility='hidden';
+  resetAll(); planCount={}; cur=k; for (let i=0;i<k;i++) await STEPS[i].run(true);
+  const frames=[capture(0)]; VCLOCK=0; let done=false; STEPS[k].run(false).then(()=>{ done=true; });
+  for (let n=0; n<9000; n++){ await yieldTask(); if (done) break; VCLOCK+=1000/30; for (const a of [...anims]) if (a.grp==='step') a.step(VCLOCK); frames.push(capture(VCLOCK)); }
+  VCLOCK=null; clearLabels(); clearCaps(); labelsEl.style.visibility=''; return frames; }
+function revTween(D, fn){ return new Promise(res=>{ const t0=performance.now(); const a={grp:'rev', step(now){ let u=Math.min(1,(now-t0)/D); if (backQueued>0) u=1; fn(u); if(u>=1){ anims.delete(a); res(); } }}; anims.add(a); }); }
+function focusOf(st){ return Array.isArray(st.cam[0])?st.cam[0]:[st.cam[0]]; }
+async function goBack(){
+  if (cur===0) return;
+  if (reversing){ backQueued++; return; }
+  reversing=true; const k=cur;
+  const frames0 = (live && live.k===k && live.frames.length>1) ? live.frames : null;
+  cancelStep(); live=null; busy=true; checkItems=null; hideCallout(); clearLabels(); clearMarks(); clearGhosts(); cam2 = STEPS[k-1].cam2 ? Object.assign({}, STEPS[k-1].cam2) : null; setButtons();   // the step being returned to keeps its Cam 2 on screen while it plays back
+  const frames = frames0 || await recordStep(k);           // recorded: it ends where the step ends, which is what is on screen
+  HOLD=false; setStepUI(k-1);
+  const st=STEPS[k-1]; applyFrame(frames[0]); scene.updateMatrixWorld(true); const target=fit(focusOf(st), st.cam[1], st.cam[2], st.cam2?(st.cam2.compare?'compare':true):false); applyFrame(frames[frames.length-1]);
+  const T=frames[frames.length-1].t, D=Math.max(450, Math.min(3000, T/3)); const p0=camState.pos.clone(), t0=camState.tgt.clone(); let idx=frames.length-1;
+  await revTween(D, u=>{ const tt=T*(1-u); while (idx>0 && frames[idx].t>tt) idx--; applyFrame(frames[idx]); const e=ease(u); camState.pos.lerpVectors(p0,target.pos,e); camState.tgt.lerpVectors(t0,target.tgt,e); });
+  applyFrame(frames[0]); reversing=false;
+  await goto(k-1,false);
+  if (backQueued>0){ backQueued--; goBack(); } }
+function placeMagHint(){ const el=document.getElementById('magHint'), r=magBtn.getBoundingClientRect(); el.style.left=(r.left+r.width/2-20)+'px'; el.style.top=(r.top-el.offsetHeight-4)+'px'; }
+addEventListener('resize',()=>placeMagHint());
+function setStepUI(k){ const st=STEPS[k]; document.getElementById('keyHint').hidden=(k!==0); const mh=document.getElementById('magHint'); mh.hidden=!st.magHint; if (st.magHint) placeMagHint(); elN.textContent=k+1; elRep.textContent=st.rep? st.rep:''; elS.innerHTML=st.s; elNote.innerHTML=st.n||''; elNote.hidden=!st.n; elS.classList.toggle('check',!!st.check); showParts(st.parts); }
+function resetAll(){
+  for (const id in parts){ const o=parts[id]; const hs=o.userData.homes; if (id==='mag' && (magOn||magBusy)) continue; if (hs.storage) place(id,'storage'); else if (hs.loaded){ scene.add(o); o.position.set(0,-50,0); o.userData.home='none'; } }
+  for (const s of [...SCREWS,...FOOT_SCREWS]){ s.visible=false; if (s.parent!==s.userData.home0) s.userData.home0.add(s); s.position.copy(s.userData.p0); s.quaternion.copy(s.userData.q0); }
+  build.visible=false; setPose('inverted'); clearGhosts(); clearLabels(); clearCaps(); window.__keyExit=null;
+}
+async function goto(k, animateLast){
+  cancelStep(); const my=epoch; live=null; HOLD=false;
+  busy=true; checkLeft=null; checkItems=null; hideCallout(); cur=k; planCount={}; const st=STEPS[k]; setButtons(); clearLabels(); clearGhosts(); clearMarks();
+  setStepUI(k);                                             // first: the panel's size decides how the camera frames the step
+  // frame the camera on how the step ENDS: apply everything through k instantly, measure, then rewind
+  resetAll(); for (let i=0;i<k;i++) await STEPS[i].run(true); if (my!==epoch) return; const before=snapshot();
+  await st.run(true); if (my!==epoch) return; build.updateMatrixWorld(true); const after=snapshot();
+  const focusArr=focusOf(st);
+  const camTarget=fit(focusArr, st.cam[1], st.cam[2], st.cam2?(st.cam2.compare?'compare':true):false);
+  cam2 = st.cam2 ? Object.assign({}, st.cam2) : null;
+  const changed=changedMarks(before, after); drawChanged(changed, after, before);
+  resetAll(); for (let i=0;i<k;i++) await STEPS[i].run(true); if (my!==epoch) return;
+  if (!animateLast) flyTo(camTarget,true);
+  window.__markCam=camTarget.pos; if (st.marks) st.marks();
+  elWhy.hidden=true; elWhy.innerHTML=`<b>Why this order</b>${PHASE_WHY[st.ph]}`;
+  const wide=st.trays||focusArr.includes('tray')||focusArr.includes('bench');
+  if (wide) trayLabels();
+  if (animateLast){ live={k, frames:[capture(0)], t0:performance.now(), last:0}; animating=true; setButtons();
+    flyTo(camTarget,false); await wait(1000); await st.run(false); if (my!==epoch) return; animating=false; live.frames.push(capture(performance.now()-live.t0)); live.done=true; }
+  else { await st.run(true); if (my!==epoch) return; flyTo(camTarget,true); }
+  if (wide) trayLabels();
+  if (st.hold){ addLabel('hold here','hold',parts[st.hold],[0,0,0]); }
+  if (st.hands){ addLabel(st.hands,'hold',build,[0,0,0]); }
+  if (st.check){ checkItems=st.check.items(); checkIdx=0; showCallout(); }
+  busy=false; setButtons();
+}
+function setButtons(){ bBack.disabled=cur===0; bRestart.disabled=reversing; bSkip.disabled=!animating; const left=checkItems? checkItems.length-checkIdx : 0; const wait_=left>0;
+  bNext.disabled=busy||cur===STEPS.length-1||wait_; bNext.classList.toggle('wait',wait_); bNext.textContent= wait_? `${left} to check` : (STEPS[cur].check?'Checked':'Next'); }
+window.__passCheck=()=>{ if(checkItems){ checkIdx=checkItems.length; hideCallout(); setButtons(); } };
+/* checks: one question at a time, a dashed pointer to the exact spot */
+const callout=document.getElementById('callout'), cQ=document.getElementById('cQ'), cProg=document.getElementById('cProg'), cRow=document.getElementById('cRow');
+const leaderLine=document.getElementById('leaderLine'), leaderDot=document.getElementById('leaderDot');
+let checkMark=null;
+function hideCallout(){ callout.hidden=true; leaderLine.setAttribute('visibility','hidden'); leaderDot.setAttribute('visibility','hidden'); if (checkMark){ markGroup.remove(checkMark); checkMark=null; } }
+function showCallout(){ if (!checkItems || checkIdx>=checkItems.length){ hideCallout(); setButtons(); return; }
+  const it=checkItems[checkIdx]; cProg.textContent=`Check ${checkIdx+1} of ${checkItems.length}`; cQ.textContent=it.q; cRow.hidden=false; callout.hidden=false;
+  if (checkMark) markGroup.remove(checkMark); const o=parts[it.id]; o.updateMatrixWorld(true); checkMark=dashedBox(ownLocalBox(o), o.matrixWorld, 0.25);
+  setButtons(); }
+document.getElementById('cYes').onclick=()=>{ checkIdx++; showCallout(); };
+const cv=new THREE.Vector3();
+function placeCallout(){ if (callout.hidden || !checkItems || checkIdx>=checkItems.length) return; const it=checkItems[checkIdx];
+  parts[it.id].localToWorld(cv.set(...it.at)); cv.project(camera); const W=renderer.domElement.clientWidth, H=renderer.domElement.clientHeight;
+  const x=(cv.x+1)/2*W, y=(1-cv.y)/2*H; const bw=callout.offsetWidth, bh=callout.offsetHeight; const top=0;
+  let bx = x+70+bw < W-16 ? x+70 : x-70-bw; let by = Math.max(top+12, Math.min(H-bh-80, y-bh-50));
+  callout.style.left=bx+'px'; callout.style.top=by+'px';
+  const ex = bx>x ? bx : bx+bw, ey = by+bh/2;
+  leaderLine.setAttribute('x1',x); leaderLine.setAttribute('y1',y); leaderLine.setAttribute('x2',ex); leaderLine.setAttribute('y2',ey); leaderLine.setAttribute('visibility','visible');
+  leaderDot.setAttribute('cx',x); leaderDot.setAttribute('cy',y); leaderDot.setAttribute('visibility','visible'); }
+window.__goto=(k)=>goto(k,false);
+window.__trays=()=>TRAYS; window.__P={parts,scene,build,STEPS};
+window.__keyDbg=()=>{ const k=parts.key; scene.updateMatrixWorld(true); const obs=obstacles(k); const c=clearance(TOOL_PROBES.key,k.position,k.quaternion,obs,null);
+  let worst=null; const m=new THREE.Matrix4().compose(k.position,k.quaternion,new THREE.Vector3(1,1,1));
+  for (const pr of TOOL_PROBES.key){ const w=pr.p.clone().applyMatrix4(m); for (const ob of obs){ const l=w.clone(); if(ob.inv) l.applyMatrix4(ob.inv); const d=boxDist(l,ob.mn,ob.mx)-pr.r; if(!worst||d<worst.d) worst={d, probe:pr.p.toArray(), ob:ob.o.userData.id, l:l.toArray()}; } }
+  const sc=window.__curScrew; const el=sc? sc.worldToLocal(k.getWorldPosition(new THREE.Vector3())).toArray():null; const scw=sc?sc.getWorldPosition(new THREE.Vector3()).toArray():null; const br=sc?sc.parent.userData.id:null;
+  return {el, scw, br, c, worst, parent:k.parent===scene, pos:k.position.toArray(), wpos:k.getWorldPosition(new THREE.Vector3()).toArray()}; };
+window.__scan=(walls)=>{ // every visible mesh of every part and tool: floor, tray walls, extrusions (screws are meant to enter extrusions, so they are left out)
+  scene.updateMatrixWorld(true); const out=[]; const v=new THREE.Vector3();
+  const isScrew=m=>{ let q=m; while(q){ if(q.userData&&q.userData.kind==='screw') return true; q=q.parent; } return false; };
+  const ownBox=o=>{ const b=new THREE.Box3(); const walk=c=>{ if(!c.visible) return; if(c!==o && c.userData.id) return; if(c.userData.kind==='screw') return; if(c.geometry){ if(!c.geometry.boundingBox) c.geometry.computeBoundingBox(); b.union(c.geometry.boundingBox.clone().applyMatrix4(c.matrixWorld)); } c.children.forEach(walk); }; walk(o); return b; };
+  const lowest=o=>{ let m=Infinity; const walk=c=>{ if(!c.visible) return; if(c!==o && c.userData.id) return; if(c.geometry){ const pa=c.geometry.attributes.position; const step=Math.max(1,Math.floor(pa.count/400)); for(let i=0;i<pa.count;i+=step){ v.fromBufferAttribute(pa,i).applyMatrix4(c.matrixWorld); if(v.y<m) m=v.y; } } c.children.forEach(walk); }; walk(o); return m; };
+  const segs=[]; for (const id in parts){ const o=parts[id]; const k=o.userData.kind; if(!o.visible||(k!=='post'&&k!=='rail')||o.userData.home==='none') continue;
+    const a = k==='post'? o.localToWorld(new THREE.Vector3(0,0,0)) : o.localToWorld(new THREE.Vector3(-RAIL_L/2,0,0));
+    const c = k==='post'? o.localToWorld(new THREE.Vector3(0,POST_L,0)) : o.localToWorld(new THREE.Vector3(RAIL_L/2,0,0)); segs.push([id,a,c,o]); }
+  const bd=(p,mn,mx)=>Math.hypot(Math.max(mn[0]-p.x,0,p.x-mx[0]), Math.max(mn[1]-p.y,0,p.y-mx[1]), Math.max(mn[2]-p.z,0,p.z-mx[2]));
+  const segSeg=(a1,b1,a2,b2)=>{ let d=1e9; for (let i=0;i<=30;i++){ const p=a1.clone().lerp(b1,i/30); d=Math.min(d,segDist(p,a2,b2)); } for (let i=0;i<=30;i++){ const p=a2.clone().lerp(b2,i/30); d=Math.min(d,segDist(p,a1,b1)); } return d; };
+  for (let i=0;i<segs.length;i++) for (let j=i+1;j<segs.length;j++){ const A=segs[i],B=segs[j];
+    const ca=Math.abs(A[2].clone().sub(A[1]).normalize().dot(B[2].clone().sub(B[1]).normalize())); const need = ca>0.9 ? 1.92 : 0.95;
+    const d=segSeg(A[1],A[2],B[1],B[2]); if (d<need) out.push([A[0]+' through '+B[0], +d.toFixed(2)]); }
+  const ex=segs.map(sg=>({id:sg[0], o:sg[3], inv:sg[3].matrixWorld.clone().invert(), kind:sg[3].userData.kind}));
+  const inside=(w,e)=>{ const l=w.clone().applyMatrix4(e.inv); const tol=0.2;
+    if (e.kind==='post') return l.y>tol && l.y<POST_L-tol && Math.abs(l.x)<1-tol && Math.abs(l.z)<1-tol ? Math.min(l.y,POST_L-l.y,1-Math.abs(l.x),1-Math.abs(l.z)) : 0;
+    return Math.abs(l.x)<RAIL_L/2-tol && Math.abs(l.y)<1-tol && Math.abs(l.z)<1-tol ? Math.min(RAIL_L/2-Math.abs(l.x),1-Math.abs(l.y),1-Math.abs(l.z)) : 0; };
+  for (const id in parts){ const o=parts[id]; if(!o.visible||o.userData.home==='none') continue; const k=o.userData.kind;
+    if (k==='nut' && o.parent!==scene) continue;            // nuts riding in a groove
+    if (k==='note') continue;
+    const ly=lowest(o); if (ly < -0.2) out.push([id+' below the surface', +ly.toFixed(2)]);
+    if ((k==='post'||k==='rail') && o.userData.phase && o.userData.phase.startsWith('carry')){ const ax=(k==='post'?new THREE.Vector3(0,1,0):new THREE.Vector3(1,0,0)).transformDirection(o.matrixWorld); if (Math.abs(ax.y)>0.03) out.push([id+' tilted while carried (nuts would slide)', +ax.y.toFixed(2)]); }
+    if (k==='post'||k==='rail'){ const sg=segs.find(q=>q[0]===id);
+      for (const w of walls){ let d=1e9; for (let i=0;i<=24;i++){ const pt=sg[1].clone().lerp(sg[2],i/24); d=Math.min(d,bd(pt,w[1],w[2])); } if (d<0.95) out.push([id+' through the '+w[0]+' tray wall', +d.toFixed(2)]); }
+      continue; }
+    const pts=[]; const walk=c=>{ if(!c.visible) return; if(c!==o && c.userData.id) return; if(c.userData.kind==='screw') return;
+      if(c.geometry){ const pa=c.geometry.attributes.position; const step=Math.max(1,Math.floor(pa.count/150)); for(let i=0;i<pa.count;i+=step) pts.push(new THREE.Vector3().fromBufferAttribute(pa,i).applyMatrix4(c.matrixWorld)); }
+      c.children.forEach(walk); }; walk(o);
+    for (const w of walls){ if (pts.some(q=>bd(q,w[1],w[2])===0 && q.y>w[1][1]+0.2)) out.push([id+' through the '+w[0]+' tray wall',0]); }
+    for (const e of ex){ if (o.parent===e.o) continue; let worst=0; for (const q of pts) worst=Math.max(worst, inside(q,e)); if (worst>0) out.push([id+' inside '+e.id+(o.userData.phase?' ['+o.userData.phase+']':'')+(e.o.userData.phase?' {'+e.o.userData.phase+'}':''), +worst.toFixed(2)]); } }
+  return out; };
+window.__look=(pos,tgt)=>{ camState.pos.set(...pos); camState.tgt.set(...tgt); };
+window.__worldOf=(id,lp)=>{ scene.updateMatrixWorld(true); return parts[id].localToWorld(new THREE.Vector3(...lp)).toArray(); };
+window.__inspectAll=()=>{ scene.updateMatrixWorld(true); const out={parts:[],trays:TRAYS,screwTray:[]};
+  const visBox=o=>{ const b=new THREE.Box3(); o.traverseVisible(c=>{ if(c.geometry && !(c.userData.id && c!==o)){ if(!c.geometry.boundingBox) c.geometry.computeBoundingBox(); b.union(c.geometry.boundingBox.clone().applyMatrix4(c.matrixWorld)); } }); return b; };
+  const ownBox=o=>{ const b=new THREE.Box3(); const walk=c=>{ if(!c.visible) return; if(c!==o && c.userData.id) return; if(c.geometry){ if(!c.geometry.boundingBox) c.geometry.computeBoundingBox(); b.union(c.geometry.boundingBox.clone().applyMatrix4(c.matrixWorld)); } c.children.forEach(walk); }; walk(o); return b; };
+  for (const id in parts){ const o=parts[id]; const b=ownBox(o); out.parts.push({id,kind:o.userData.kind,home:o.userData.home||'',vis:o.visible,min:b.min.toArray(),max:b.max.toArray()}); }
+  TRAY_SCREWS.forEach(sc=>{ const b=new THREE.Box3().setFromObject(sc); out.screwTray.push({min:b.min.toArray(),max:b.max.toArray()}); });
+  return out; };
+window.__screenPos=(id)=>{ const v=new THREE.Vector3(); parts[id].getWorldPosition(v); v.project(camera); return [(v.x+1)/2*renderer.domElement.clientWidth,(1-v.y)/2*renderer.domElement.clientHeight]; };
+window.__inspect=()=>{ // test hook: world boxes of the solid parts, their homes, and the step's focus box in screen space
+  scene.updateMatrixWorld(true);
+  const out={step:cur, parts:[], home:{}};
+  for (const id in parts){ const o=parts[id]; const k=o.userData.kind; if(!['post','rail','foot'].includes(k)) continue;
+    if(!o.geometry.boundingBox) o.geometry.computeBoundingBox(); const b=o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld);
+    const seg = k==='post' ? [o.localToWorld(new THREE.Vector3(0,0,0)).toArray(), o.localToWorld(new THREE.Vector3(0,POST_L,0)).toArray()] : k==='rail' ? [o.localToWorld(new THREE.Vector3(-RAIL_L/2,0,0)).toArray(), o.localToWorld(new THREE.Vector3(RAIL_L/2,0,0)).toArray()] : null;
+    out.parts.push({id,kind:k,home:o.userData.home,min:b.min.toArray(),max:b.max.toArray(),seg}); }
+  const st=STEPS[cur]; const focusArr=Array.isArray(st.cam[0])?st.cam[0]:[st.cam[0]];
+  const box=new THREE.Box3();
+  for (const f of focusArr){ if (typeof f==='object' && f.box){ box.union(new THREE.Box3(new THREE.Vector3(...f.box[0]), new THREE.Vector3(...f.box[1]))); } else if (typeof f==='object'){ const c=f.local?build.localToWorld(new THREE.Vector3(...f.local)):new THREE.Vector3(...f.world); box.expandByPoint(c.clone().addScalar(-(f.r||10))); box.expandByPoint(c.clone().addScalar(f.r||10)); }
+    else if (f==='tray') box.union(new THREE.Box3(new THREE.Vector3(-42,0,-31), new THREE.Vector3(42,8,31)));
+    else if (f==='bench') box.union(new THREE.Box3(new THREE.Vector3(-80,0,-62), new THREE.Vector3(80,20,40)));
+    else { const o=parts[f]||(f==='build'?build:null); if(o) box.expandByObject(o); } }
+  camera.position.copy(camState.pos); camera.lookAt(camState.tgt); camera.updateMatrixWorld(true); camera.updateProjectionMatrix();
+  const pts=[]; for (const x of [box.min.x,box.max.x]) for (const y of [box.min.y,box.max.y]) for (const z of [box.min.z,box.max.z]) { const p=new THREE.Vector3(x,y,z).project(camera); pts.push([p.x,p.y,p.z]); }
+  out.focusNDC=pts; out.camPos=camState.pos.toArray(); out.camTgt=camState.tgt.toArray();
+  return out;
+};
+bNext.onclick=()=>{ if(!busy&&cur<STEPS.length-1) goto(cur+1,true); };
+bBack.onclick=()=>goBack();                                     // always available: plays the step backwards
+bRestart.onclick=()=>{ if(!reversing) goto(cur,true); };
+bSkip.onclick=()=>{ if(animating && !reversing) goto(cur,false); };
+addEventListener('keydown',e=>{ if (e.metaKey||e.ctrlKey||e.altKey) return;
+  if (e.key===' ' || e.code==='Space'){ e.preventDefault(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur();   // space: skip a running animation, else confirm the open check, else next
+    if (animating && !reversing) bSkip.click(); else if (!callout.hidden && !cRow.hidden) document.getElementById('cYes').click(); else bNext.click(); return; }
+  if (e.key==='Backspace'){ e.preventDefault(); bBack.click(); return; }                                                                              // backspace: back
+  if(e.key==='ArrowRight') bNext.click(); else if(e.key==='ArrowLeft') bBack.click(); else if(e.key.toLowerCase()==='r') bRestart.click(); else if(e.key.toLowerCase()==='s') bSkip.click(); });
+window.__busy=()=>busy||reversing;
+
+// tap-to-count
+const ray=new THREE.Raycaster(), ptr=new THREE.Vector2();
+renderer.domElement.addEventListener('pointerdown', e=>{
+  const r=renderer.domElement.getBoundingClientRect(); ptr.set(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1);
+  ray.setFromCamera(ptr,camera);
+  if (magOn && !magBusy){ if (e.pointerType==='mouse'){ putBackMag(); } else magDown={x:e.clientX,y:e.clientY}; return; }   // magnifying: a click sets it down; on a touch screen a tap does (a drag just moves it)
+  if (magBusy && !magOn && magPicking){ magPutAfter=true; return; }                                                              // clicked while it is still coming up: put it down once it arrives
+  if (!magOn && !magBusy && parts.mag.visible && ray.intersectObject(parts.mag,true).length){ pickUpMag(); return; }
+});
+
+/* screws tray: one visible screw per screw not yet driven */
+const TRAY_SCREWS=[]; for (let n=0;n<48;n++){ const sc=screwObj(); sc.visible=true; sc.quaternion.copy(qMul(qAA(Y,(n*53%180)*Math.PI/180),qAA(Z,Math.PI/2)));
+  sc.position.set(TRAYS.screws.x-5.25+(n%8)*1.5, 0.48, TRAYS.screws.z-4.6+Math.floor(n/8)*1.85); scene.add(sc); TRAY_SCREWS.push(sc); }
+const TRAY_FOOT_SCREWS=[0,1,2,3].map(n=>{ const sc=footScrewObj(); sc.visible=true; sc.quaternion.copy(qAA(Z,-Math.PI/2)); sc.position.set(72.2,0.27,-44.5+n*2.2); scene.add(sc); return sc; });   // in the feet tray, lying down
+function syncScrewTray(){ const left=SCREWS.filter(s=>!s.visible).length; TRAY_SCREWS.forEach((s,n)=>s.visible=n<left);
+  const fl=FOOT_SCREWS.filter(s=>!s.visible).length; TRAY_FOOT_SCREWS.forEach((s,n)=>s.visible=n<fl); }
+async function peelNote(id,i){ // a sticky note comes off and goes back on the pile: straight out, up, over, down
+  const o=parts[id]; if (i){ place(id,'storage'); return; } scene.attach(o); const p0=o.position.clone(), q0=o.quaternion.clone(), h=o.userData.homes.storage;
+  const out=new THREE.Vector3(0,0,1).applyQuaternion(q0).multiplyScalar(3), a=p0.clone().add(out), H=Math.max(a.y,h.pos.y)+12;
+  const legs=[[p0,a],[a,new THREE.Vector3(a.x,H,a.z)],[new THREE.Vector3(a.x,H,a.z),new THREE.Vector3(h.pos.x,H,h.pos.z)],[new THREE.Vector3(h.pos.x,H,h.pos.z),h.pos.clone()]];
+  const L=legs.map(([u,v])=>u.distanceTo(v)), T=L.reduce((x,y)=>x+y); const lab=addLabel('note off','fly',o,[0,2,0]);
+  await tween(900+T*8, t=>{ let d=t*T, j=0; while (j<3 && d>L[j]){ d-=L[j]; j++; } o.position.lerpVectors(legs[j][0],legs[j][1],L[j]?d/L[j]:1); THREE.Quaternion.slerp(q0,h.quat,o.quaternion,Math.min(1,t*1.4)); });
+  place(id,'storage'); removeLabel(lab); }
+async function flyFootScrew(k,i){ // from the feet tray, over the frame, down onto the end of its foot
+  if (i) return; const sc=FOOT_SCREWS[k], foot=sc.userData.home0, tray=TRAY_FOOT_SCREWS[k]; foot.updateMatrixWorld(true);
+  const ax=new THREE.Vector3(0,1,0).applyQuaternion(sc.userData.q0); const lEnd=sc.userData.p0.clone().addScaledVector(ax,-0.4);
+  const pE=foot.localToWorld(lEnd.clone()), qE=foot.getWorldQuaternion(new THREE.Quaternion()).multiply(sc.userData.q0);
+  const p0=tray.getWorldPosition(new THREE.Vector3()), q0=tray.quaternion.clone(); const H=Math.max(30, pE.y+5);
+  scene.add(sc); sc.visible=true; sc.position.copy(p0); sc.quaternion.copy(q0);
+  const a=new THREE.Vector3(p0.x,H,p0.z), b=new THREE.Vector3(pE.x,H,pE.z), legs=[[p0,a],[a,b],[b,pE]], L=legs.map(([u,v])=>u.distanceTo(v)), T=L.reduce((x,y)=>x+y);
+  await tween(900+T*9, t=>{ let d=t*T, j=0; while (j<2 && d>L[j]){ d-=L[j]; j++; } sc.position.lerpVectors(legs[j][0],legs[j][1],L[j]?d/L[j]:1); THREE.Quaternion.slerp(q0,qE,sc.quaternion,Math.min(1,t*1.6)); });
+  foot.add(sc); sc.position.copy(sc.userData.p0); sc.quaternion.copy(sc.userData.q0); }
+
+/* ============================== magnifier ============================== */
+// a real lens in the scene: picked up, it is held between your eye and the bench and its glass shows what is behind it, magnified
+const magBtn=document.getElementById('magBtn');
+const MAG_D=30, MAG_ZOOM_FOV=4.4;                                   // held 30 cm in front of the eye; about 4x
+const handScene=new THREE.Scene(); handScene.add(new THREE.HemisphereLight(0xffffff,0x8a847a,0.72)); { const d=new THREE.DirectionalLight(0xffffff,0.62); d.position.set(30,90,70); handScene.add(d); }
+const magRT=new THREE.WebGLRenderTarget(768,768); const zoomCam=new THREE.PerspectiveCamera(MAG_ZOOM_FOV,1,1,1000);
+const MAG_VIEW=new THREE.MeshBasicMaterial({map:magRT.texture});
+let magOn=false, magBusy=false; const pointer={x:innerWidth/2,y:innerHeight/2};
+addEventListener('pointermove',e=>{ pointer.x=e.clientX; pointer.y=e.clientY; });
+const magRay=new THREE.Raycaster(), magTmp=new THREE.Object3D();
+function heldPose(){ const w=renderer.domElement.clientWidth, h=renderer.domElement.clientHeight;
+  magRay.setFromCamera(new THREE.Vector2(pointer.x/w*2-1, -(pointer.y/h)*2+1), camera);
+  magTmp.position.copy(camera.position).addScaledVector(magRay.ray.direction, MAG_D);
+  magTmp.up.copy(new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion)); magTmp.lookAt(camera.position);     // glass facing you
+  return {p:magTmp.position.clone(), q:qMul(magTmp.quaternion, qAA(Z,MAG_TWIST)), dir:magRay.ray.direction.clone()}; }
+let magPicking=false, magPutAfter=false;
+async function pickUpMag(fromButton){ if(magOn||magBusy) return; magBusy=true; magPicking=true; magPutAfter=false; const o=parts.mag; scene.attach(o);
+  if (fromButton){ pointer.x=renderer.domElement.clientWidth/2; pointer.y=renderer.domElement.clientHeight/2; }
+  const p0=o.position.clone(), q0=o.quaternion.clone(); let swapped=false; magBtn.classList.add('on');
+  await tween(750, t=>{ const H=heldPose(); o.position.lerpVectors(p0,H.p,t); o.position.y+=Math.sin(Math.PI*t)*6; THREE.Quaternion.slerp(q0,H.q,o.quaternion,t);
+    if (t>0.5 && !swapped){ swapped=true; o.userData.glass.material=MAG_VIEW; o.userData.glass.rotation.z=-MAG_TWIST; handScene.attach(o); } }, 'ui');
+  if (!swapped){ o.userData.glass.material=MAG_VIEW; o.userData.glass.rotation.z=-MAG_TWIST; handScene.attach(o); }
+  magOn=true; magBusy=false; magPicking=false; if (magPutAfter){ magPutAfter=false; putBackMag(); } }
+async function putBackMag(){ if(!magOn||magBusy) return; magBusy=true; magOn=false; magBtn.classList.remove('on');
+  const o=parts.mag, h=o.userData.homes.storage; const p0=o.position.clone(), q0=o.quaternion.clone(); let swapped=false;
+  await tween(750, t=>{ o.position.lerpVectors(p0,h.pos,t); o.position.y+=Math.sin(Math.PI*t)*6; THREE.Quaternion.slerp(q0,h.quat,o.quaternion,t);
+    if (t>0.5 && !swapped){ swapped=true; o.userData.glass.material=M.glass; scene.attach(o); } }, 'ui');
+  o.userData.glass.material=M.glass; o.userData.glass.rotation.z=0; place('mag','storage'); magBusy=false; }
+magBtn.onclick=()=>{ if (magPicking){ magPutAfter=true; return; } magOn? putBackMag() : pickUpMag(true); };
+let magDown=null;
+addEventListener('pointerup',e=>{ if (magDown && magOn && Math.hypot(e.clientX-magDown.x,e.clientY-magDown.y)<16) putBackMag(); magDown=null; });
+addEventListener('keydown',e=>{ if(e.key==='Escape'&&magOn) putBackMag(); });
+function magHeld(){ return parts.mag.parent===handScene; }
+function updateMag(){ // follow the pointer, and render what the glass sees into its picture
+  if (!magHeld()) return; const o=parts.mag, H=heldPose();
+  if (magOn && !magBusy){ o.position.lerp(H.p,0.45); o.quaternion.slerp(H.q,0.45); }
+  zoomCam.position.copy(camera.position); zoomCam.up.copy(new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion));
+  zoomCam.lookAt(o.position.clone().sub(camera.position).normalize().add(camera.position)); zoomCam.updateProjectionMatrix();
+  renderer.setRenderTarget(magRT); renderer.render(scene,zoomCam); renderer.setRenderTarget(null); }
+function magScreen(){ // where the held glass is on screen, and how big
+  if (!magHeld()) return null; const o=parts.mag; const c=o.position.clone().project(camera); const w=renderer.domElement.clientWidth, h=renderer.domElement.clientHeight;
+  const d=o.position.distanceTo(camera.position); const r=5.4/(2*d*Math.tan(camera.fov*Math.PI/360))*h; return {x:(c.x+1)/2*w, y:(1-c.y)/2*h, r}; }
+
+/* cam 2: a small second view for steps where alignment matters */
+const cam2Guide=new THREE.Group(); cam2Guide.visible=false; scene.add(cam2Guide); const CAM2_DASH_GEO=new THREE.BoxGeometry(1,1,1), CAM2_DASH_MAT=new THREE.MeshBasicMaterial({color:MARK_RED, depthTest:false, transparent:true});
+const cam2Cam=new THREE.OrthographicCamera(-1,1,1,-1,0.1,500), cam2El=document.getElementById('cam2'), cam2Lab=document.getElementById('cam2Label');
+// right and wrong, side by side, like a LEGO booklet: the end of a post with a T-nut in its top groove
+const CMP={}; { const mk=(flip)=>{ const sc=new THREE.Scene(); sc.background=new THREE.Color(0x1f7fd2); sc.add(new THREE.HemisphereLight(0xffffff,0x8a847a,0.75)); const d=new THREE.DirectionalLight(0xffffff,0.6); d.position.set(3,6,8); sc.add(d);
+    sc.add(new THREE.Mesh(new THREE.ExtrudeGeometry(PROFILE,{depth:4,bevelEnabled:false}),M.alu));
+    const n=tnutMesh(flip? tnut([0,-1,0],[0,0,1]) : tnut([0,1,0],[0,0,1])); n.position.set(0, flip? 0.80 : NUT_D, 3.5); sc.add(n); return sc; };
+  CMP.ok=mk(false); CMP.no=mk(true); CMP.cam=new THREE.OrthographicCamera(-1,1,1,-1,0.1,50); CMP.cam.position.set(0,0.1,9); CMP.cam.lookAt(0,0.1,0); }
+const cam2bEl=document.getElementById('cam2b');
+const BADGE_OK='<svg viewBox="0 0 24 24"><path d="M5 12.5 L10 17.5 L19 7"/></svg>', BADGE_NO='<svg viewBox="0 0 24 24"><path d="M6 6 L18 18 M18 6 L6 18"/></svg>';
+function renderCompare(W,H,{x,y,pw,ph,stack}){ const gap=12;
+  const A = stack ? {x, y:y+ph+gap} : {x, y}, B = stack ? {x, y} : {x:x+pw+gap, y};          // A: right (top / left), B: wrong (bottom / right)
+  cam2El.hidden=false; cam2bEl.hidden=false;
+  for (const [el,P] of [[cam2El,A],[cam2bEl,B]]){ el.style.width=pw+'px'; el.style.height=ph+'px'; el.style.right=(W-P.x-pw)+'px'; el.style.bottom=P.y+'px'; }
+  if (cam2Lab.dataset.k!=='cmp'){ cam2Lab.dataset.k='cmp'; cam2Lab.className='badge ok'; cam2Lab.innerHTML=BADGE_OK; cam2bEl.firstChild.innerHTML=BADGE_NO; }
+  const a=pw/ph, hx=a>=1 ? 1.1*a : 1.1, hy=hx/a; Object.assign(CMP.cam,{left:-hx,right:hx,top:hy,bottom:-hy}); CMP.cam.updateProjectionMatrix();   // the whole 20 mm profile fits
+  renderer.setScissorTest(true);
+  renderer.setViewport(A.x,A.y,pw,ph); renderer.setScissor(A.x,A.y,pw,ph); renderer.render(CMP.ok,CMP.cam);
+  renderer.setViewport(B.x,B.y,pw,ph); renderer.setScissor(B.x,B.y,pw,ph); renderer.render(CMP.no,CMP.cam);
+  renderer.setScissorTest(false); renderer.setViewport(0,0,W,H); }
+function renderCam2(){ if (!cam2){ cam2El.hidden=true; cam2bEl.hidden=true; return; }
+  if (cam2.compare){ const W=renderer.domElement.clientWidth, H=renderer.domElement.clientHeight; renderCompare(W,H,cam2Rect(W,H,true)); return; }
+  cam2bEl.hidden=true; cam2El.style.right=''; cam2El.style.bottom=''; if (cam2Lab.dataset.k!=='cam2'){ cam2Lab.dataset.k='cam2'; cam2Lab.className=''; cam2Lab.innerHTML=''; }
+  const W=renderer.domElement.clientWidth, H=renderer.domElement.clientHeight; const {x,y,w,h}=cam2Rect(W,H);
+  cam2El.hidden=false; cam2El.style.width=w+'px'; cam2El.style.height=h+'px'; cam2Lab.textContent='Cam 2';
+  const a=w/h, sz=cam2.size; cam2Cam.left=-sz*a; cam2Cam.right=sz*a; cam2Cam.top=sz; cam2Cam.bottom=-sz; cam2Cam.updateProjectionMatrix();
+  const tgt=new THREE.Vector3(...cam2.at), d=new THREE.Vector3(...cam2.dir).normalize(); cam2Cam.position.copy(tgt).addScaledVector(d,cam2.dist||120);
+  cam2Cam.up.set(0,1,0); if (Math.abs(d.y)>0.9) cam2Cam.up.set(0,0,-1); cam2Cam.lookAt(tgt);
+  cam2Cam.far=cam2.far||500; cam2Cam.updateProjectionMatrix();
+  if (cam2Guide.userData.src!==cam2){ cam2Guide.userData.src=cam2; while(cam2Guide.children.length) cam2Guide.remove(cam2Guide.children[0]);
+    if (cam2.line){ const a0=new THREE.Vector3(...cam2.line[0]), a1=new THREE.Vector3(...cam2.line[1]), L=a0.distanceTo(a1), u=a1.clone().sub(a0).normalize(), n=Math.floor(L/0.55);
+      for (let i=0;i<=n;i++){ const t0=i*0.55, t1=Math.min(L,t0+0.33); if (t1<=t0) continue; const m=new THREE.Mesh(CAM2_DASH_GEO,CAM2_DASH_MAT); m.renderOrder=999;
+        m.position.copy(a0).addScaledVector(u,(t0+t1)/2); m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),u); m.scale.set(cam2.lineW||0.09,t1-t0,cam2.lineW||0.09); cam2Guide.add(m); } }
+    if (cam2.ground){ const [gx,gy,z0,z1]=cam2.ground; const g=new THREE.Mesh(CAM2_DASH_GEO,M.trayIn); g.scale.set(0.2,3,z1-z0); g.position.set(gx,gy-1.5,(z0+z1)/2); cam2Guide.add(g); } }
+  markGroup.visible=false; cam2Guide.visible=true; renderer.setScissorTest(true); renderer.setViewport(x,y,w,h); renderer.setScissor(x,y,w,h); renderer.render(scene,cam2Cam); markGroup.visible=true; cam2Guide.visible=false;
+  renderer.setScissorTest(false); renderer.setViewport(0,0,W,H); }
+
+/* ============================== loop ============================== */
+function resize(){ const w=app.clientWidth, h=app.clientHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+addEventListener('resize',resize); resize();
+window.__frames=[]; let __lastF=0;
+function frame(now){ if(__lastF && window.__frames.length<50000) window.__frames.push(now-__lastF); __lastF=now; if (HOLD){ requestAnimationFrame(frame); return; }
+  for (const a of [...anims]) a.step(now);
+  if (live && !live.done && now-live.t0-live.last>=1000/30){ live.last=now-live.t0; live.frames.push(capture(live.last)); }
+  camera.position.copy(camState.pos); camera.lookAt(camState.tgt); syncScrewTray(); if (!window.__noRender){ updateMag(); renderer.render(scene,camera); if (magHeld()){ renderer.autoClear=false; renderer.clearDepth(); renderer.render(handScene,camera); renderer.autoClear=true; } renderCam2(); updateLabels(); placeCallout(); } requestAnimationFrame(frame); }
+// compile every material's shader up front, including ones that only appear mid-animation, so nothing stalls the first time it shows
+{ const warm=[CAP_MAT, M.ghost].map(mt=>{ const w=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.1,0.1),mt); w.position.set(0,-50,0); scene.add(w); return w; });
+  renderer.compile(scene,camera); warm.forEach(w=>scene.remove(w)); }
+requestAnimationFrame(frame);
+goto(0,false);
+})();
+</script>
