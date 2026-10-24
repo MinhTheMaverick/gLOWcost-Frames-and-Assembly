@@ -123,7 +123,7 @@ body.phone #home{top:max(14px,env(safe-area-inset-top,0px));right:max(16px,env(s
 #gallery .wall{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:6px}
 #gallery .wall div{border-radius:3px;overflow:hidden;background:#1c1d1f;min-height:0;position:relative}
 #gallery .wall img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;transition:opacity .6s;pointer-events:none;-webkit-user-drag:none}
-#gallery .send{margin:0;font-size:var(--t-m);line-height:1.4;color:var(--fg)}
+#gallery .send{margin:0;font-size:var(--t-m);line-height:1.4;color:var(--fg);user-select:text}   /* the address can be selected and copied */
 #gallery .send b{color:#f2c230;font-weight:600}
 body.phone #gallery{padding:8px;gap:6px}
 body.phone #gallery .wall{grid-template-columns:repeat(3,1fr)}
@@ -519,12 +519,12 @@ function hatModel(){ const g=new THREE.Group(), T=0.156, e=0.002;
 
 /* ---- the last step: a wall of other people's detectors (photos listed in gallery/photos.json), and where to send a photo of yours.
    The wall is only to look at: nothing on it responds to clicks. */
-const GALLERY_SEND_TO='Xiaochun He at GSU';   /* who to send photos to, e.g. 'name@example.edu'; shown in the line under the wall */
+const GALLERY_SEND_TO='Xiaochun He at GSU', GALLERY_EMAIL='xhe@gsu.edu';   /* who to send photos to, e.g. 'name@example.edu'; shown in the line under the wall */
 const GAL={ el:document.getElementById('gallery'), wall:document.querySelector('#gallery .wall'), photos:[], shown:[], next:0, key:'', timer:0 };
 GAL.el.addEventListener('pointerdown', e=>e.stopPropagation()); GAL.el.addEventListener('click', e=>e.stopPropagation());   /* clicks here do not reach the bench behind */
 GAL.el.querySelector('.send').innerHTML = GALLERY_SEND_TO
-  ? `Take a photo of your detector and send it to <b>${GALLERY_SEND_TO}</b> to add it to this wall.`
-  : 'Take a photo of your detector to add it to this wall.';
+  ? `Take a photo of your detector and send it to ${GALLERY_SEND_TO}: <b>${GALLERY_EMAIL}</b>`
+  : 'Take a photo of your detector.';
 fetch('gallery/photos.json').then(r=>r.ok?r.json():[]).then(list=>{ GAL.photos=list.map(n=>'gallery/'+n); GAL.key=''; }).catch(()=>{});
 function galSlots(){ if (isPhone()) return 3; const r=GAL.el.getBoundingClientRect(), s=GAL.el.querySelector('.send').getBoundingClientRect(); const tw=(r.width-26)/2, th=tw*0.78;
   return 2*Math.max(1, Math.min(5, Math.floor((r.height-20-16-s.height-16+6)/(th+6)))); }
