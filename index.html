@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="3D step-by-step build guides for the gLOWCOST detector. Every part, every screw, in the order you build it.">
+<title>gLOWCOST Build Guides</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+:root{
+  --page:#2a2b2d; --fg:#ecebe7; --muted:#a6a8ad;
+  --blue:#1f7fd2; --blue-dk:#1a6cb4; --yellow:#ffd23f; --ink:#16181b;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:var(--page);color:var(--fg);font-family:'IBM Plex Sans',system-ui,sans-serif;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 16px;gap:28px}
+.shelf{width:100%;display:flex;gap:22px;align-items:flex-end;flex-wrap:wrap;justify-content:center}
+
+/* a booklet cover */
+.book{position:relative;display:flex;flex-direction:column;width:min(360px,100%);aspect-ratio:210/280;
+  background:var(--blue);border-radius:6px;overflow:hidden;color:#fff;text-decoration:none;
+  box-shadow:0 1px 0 rgba(255,255,255,.08) inset, 6px 8px 0 #1b1c1e, 0 20px 40px rgba(0,0,0,.35);
+  transition:transform .15s ease, box-shadow .15s ease}
+a.book:hover{transform:translateY(-4px) rotate(-.6deg);box-shadow:0 1px 0 rgba(255,255,255,.08) inset, 8px 12px 0 #1b1c1e, 0 26px 44px rgba(0,0,0,.4)}
+a.book:focus-visible{outline:3px solid var(--yellow);outline-offset:4px}
+.top{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 0}
+.mark{font-weight:700;font-size:18px;letter-spacing:-.01em}
+.mark b{font-weight:700;color:var(--yellow)}
+.age{background:#fff;color:var(--ink);font-weight:700;font-size:15px;padding:3px 8px;border-radius:4px}
+.art{flex:1;display:flex;align-items:center;justify-content:center;padding:6px 18px 0;min-height:0}
+.art svg{width:100%;height:100%;max-height:100%}
+.foot{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:0 16px 16px}
+.num{width:46px;height:46px;flex:none;border-radius:50%;background:#fff;color:var(--blue);font-weight:700;font-size:26px;
+  display:flex;align-items:center;justify-content:center}
+.title{flex:1}
+.title h2{margin:0;font-size:32px;line-height:1;font-weight:700;letter-spacing:-.02em}
+.title p{margin:6px 0 0;font:500 12px/1.3 'IBM Plex Mono',monospace;color:rgba(255,255,255,.85)}
+.go{position:absolute;right:14px;top:50px;background:var(--yellow);color:var(--ink);font-weight:700;font-size:13px;
+  padding:6px 10px;border-radius:4px;transform:rotate(4deg)}
+
+/* the next booklet: not written yet */
+.book.later{width:min(220px,62vw);background:transparent;border:2px dashed #4a4c50;box-shadow:none;color:var(--muted);
+  align-items:center;justify-content:center;text-align:center;padding:16px;font-size:14px;line-height:1.4}
+.book.later .num{background:#3a3c40;color:var(--muted);margin-bottom:12px}
+
+footer{font-size:13px;color:var(--muted);text-align:center;max-width:520px;line-height:1.5}
+footer kbd{font:500 12px 'IBM Plex Mono',monospace;border:1px solid #4a4c50;border-radius:3px;padding:0 4px}
+@media (max-width:520px){ .book.later{aspect-ratio:auto;width:100%;flex-direction:row;gap:12px} .book.later .num{margin:0} }
+</style>
+
+<main class="shelf">
+  <a class="book" href="frame.html" aria-label="Frame: 46 steps, 171 parts. Open the build guide.">
+    <div class="top"><span class="mark">g<b>LOW</b>COST</span><span class="age">11+</span></div>
+    <span class="go">Open →</span>
+    <div class="art">
+      <svg viewBox="-150 -238 300 335" aria-hidden="true">
+        <defs>
+          <linearGradient id="alu" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#e9ecef"/><stop offset=".5" stop-color="#b9bfc6"/><stop offset="1" stop-color="#8e959d"/></linearGradient>
+          <linearGradient id="aluB" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#aab1b8"/><stop offset="1" stop-color="#7d848c"/></linearGradient>
+        </defs>
+        <g id="frame"></g>
+      </svg>
+    </div>
+    <div class="foot">
+      <div class="title"><h2>Frame</h2><p>46 steps · 171 parts</p></div>
+      <div class="num">1</div>
+    </div>
+  </a>
+
+  <div class="book later" aria-hidden="true"><div class="num">2</div><div>Next assembly<br>coming later</div></div>
+</main>
+
+<footer>
+  Step-by-step 3D build guides for the gLOWCOST detector. Each one is shown in the order you build it, at a table, part by part.
+  In a guide: <kbd>Space</kbd> next, <kbd>Backspace</kbd> back.
+</footer>
+
+<script>
+/* an isometric drawing of the finished frame: 4 posts, rails at 0, 13 and 26 cm down, feet under the posts */
+(() => {
+  const S=5.2, H=31.5, W=12.2;                          // px per cm; frame height; half width to post centres
+  const iso=(x,y,z)=>[(x-z)*0.866*S, (x+z)*0.5*S - y*S];
+  const g=document.getElementById('frame'), NS='http://www.w3.org/2000/svg';
+  const el=(tag,attrs)=>{ const e=document.createElementNS(NS,tag); for (const k in attrs) e.setAttribute(k,attrs[k]); g.appendChild(e); return e; };
+  const bar=(a,b,back)=>{ const [x1,y1]=iso(...a), [x2,y2]=iso(...b);
+    el('line',{x1,y1,x2,y2,stroke:back?'#6f767e':'#4d545b','stroke-width':11.5,'stroke-linecap':'square'});
+    el('line',{x1,y1,x2,y2,stroke:back?'url(#aluB)':'#c9ced4','stroke-width':9,'stroke-linecap':'square'});
+    el('line',{x1,y1,x2,y2,stroke:back?'#7b828a':'#8d949b','stroke-width':1.6}); };   // the slot
+  // shadow on the table
+  const sh=[[-W-4,0,-W-4],[W+4,0,-W-4],[W+4,0,W+4],[-W-4,0,W+4]].map(p=>iso(...p).join(',')).join(' ');
+  el('polygon',{points:sh,fill:'rgba(0,0,0,.18)'});
+  const P={bl:[-W,-W],br:[W,-W],fr:[W,W],fl:[-W,W]};    // [x,z]: back-left (far), back-right, front-right (near), front-left
+  const lv=[H, H-13, H-26];
+  const foot=(c)=>{ const [x,y]=iso(c[0],0,c[1]); el('rect',{x:x-5,y:y-6,width:10,height:8,rx:2,fill:'#1d1f22'}); };
+  // far first: the back post, the back rails, side posts, near rails, near post
+  foot(P.bl); bar([P.bl[0],1.2,P.bl[1]],[P.bl[0],H,P.bl[1]],true);
+  for (const y of lv){ bar([-W,y,-W],[W,y,-W],true); bar([-W,y,-W],[-W,y,W],true); }
+  foot(P.br); foot(P.fl);
+  bar([P.br[0],1.2,P.br[1]],[P.br[0],H,P.br[1]]); bar([P.fl[0],1.2,P.fl[1]],[P.fl[0],H,P.fl[1]]);
+  for (const y of lv){ bar([W,y,-W],[W,y,W]); bar([-W,y,W],[W,y,W]); }
+  foot(P.fr); bar([P.fr[0],1.2,P.fr[1]],[P.fr[0],H,P.fr[1]]);
+  // corner brackets as small dark marks on the near faces
+  for (const y of lv) for (const c of [P.fr,P.br,P.fl]){ const [x,yy]=iso(c[0],y-1.6,c[1]); el('circle',{cx:x,cy:yy,r:1.6,fill:'#3b3f44'}); }
+})();
+</script>
+</html>
