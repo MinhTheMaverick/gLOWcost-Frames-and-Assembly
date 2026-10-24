@@ -83,12 +83,15 @@ button:disabled{opacity:.35;cursor:default}
 #magBtn{width:40px;height:40px;border-radius:50%;padding:0;display:grid;place-items:center;background:var(--band)}
 #magBtn svg{width:30px;height:30px;display:block}
 #magBtn.on{background:var(--btn);border-color:var(--btn)}
-@media (max-width:760px){ #bottom .long{display:none} #why{display:none} #stepBox{width:calc(100vw - 32px)} }
+#home{position:absolute;top:max(18px,env(safe-area-inset-top,0px));right:max(20px,env(safe-area-inset-right,0px));z-index:5;color:#fff;opacity:.9;font-size:14px;font-weight:500;text-decoration:none;text-shadow:0 1px 2px rgba(0,0,0,.25)}
+#home:hover{opacity:1;text-decoration:underline;text-underline-offset:3px}
+@media (max-width:760px){ #bottom .long{display:none} #why{display:none} #stepBox{width:calc(100vw - 32px - 56px)} }
 @media (max-width:520px){ #bottom .mid{gap:6px} #bottom button{padding:10px 10px} #magBtn{width:40px;height:40px;padding:0} }
 @media (prefers-reduced-motion: reduce){ :root{--motion:0} }
 </style>
 
 <div id="app">
+  <a id="home" href="index.html">Home</a>
   <div id="stepBox"><div id="counter"><span><b id="n">1</b> / <span id="total">0</span></span><span id="rep"></span></div><p id="sentence"></p><p id="note" hidden></p><div id="partsRow" hidden></div><div class="nav"><button id="back">Back</button><button id="next">Next</button></div></div>
   <div id="why" hidden></div>
   <svg id="leader" width="100%" height="100%" style="position:absolute;inset:0;pointer-events:none"><line id="leaderLine" x1="0" y1="0" x2="0" y2="0" stroke="#d7262b" stroke-width="1.6" stroke-dasharray="5 4" visibility="hidden"/><circle id="leaderDot" r="4" fill="#d7262b" visibility="hidden"/></svg>
