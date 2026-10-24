@@ -7,9 +7,9 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>
 :root{
-  --page:#2a2b2d; --fg:#ecebe7; --muted:#a6a8ad;
+  --page:#ffffff; --fg:#16181b; --muted:#6b6f76;
   --blue:#1f7fd2; --blue-dk:#1a6cb4; --yellow:#ffd23f; --ink:#16181b;
-  color-scheme:dark;
+  color-scheme:light;
 }
 *{box-sizing:border-box}
 body{margin:0;min-height:100vh;background:var(--page);color:var(--fg);font-family:'IBM Plex Sans',system-ui,sans-serif;
@@ -19,14 +19,13 @@ body{margin:0;min-height:100vh;background:var(--page);color:var(--fg);font-famil
 /* a booklet cover */
 .book{position:relative;display:flex;flex-direction:column;width:min(360px,100%);aspect-ratio:210/280;
   background:var(--blue);border-radius:6px;overflow:hidden;color:#fff;text-decoration:none;
-  box-shadow:0 1px 0 rgba(255,255,255,.08) inset, 6px 8px 0 #1b1c1e, 0 20px 40px rgba(0,0,0,.35);
+  box-shadow:6px 8px 0 #16181b, 0 18px 36px rgba(0,0,0,.18);
   transition:transform .15s ease, box-shadow .15s ease}
-a.book:hover{transform:translateY(-4px) rotate(-.6deg);box-shadow:0 1px 0 rgba(255,255,255,.08) inset, 8px 12px 0 #1b1c1e, 0 26px 44px rgba(0,0,0,.4)}
-a.book:focus-visible{outline:3px solid var(--yellow);outline-offset:4px}
+a.book:hover{transform:translateY(-4px) rotate(-.6deg);box-shadow:8px 12px 0 #16181b, 0 24px 40px rgba(0,0,0,.22)}
+a.book:focus-visible{outline:3px solid var(--ink);outline-offset:4px}
 .top{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 0}
 .mark{font-weight:700;font-size:18px;letter-spacing:-.01em}
 .mark b{font-weight:700;color:var(--yellow)}
-.age{background:#fff;color:var(--ink);font-weight:700;font-size:15px;padding:3px 8px;border-radius:4px}
 .art{flex:1;display:flex;align-items:center;justify-content:center;padding:6px 18px 0;min-height:0}
 .art svg{width:100%;height:100%;max-height:100%}
 .foot{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:0 16px 16px}
@@ -35,22 +34,26 @@ a.book:focus-visible{outline:3px solid var(--yellow);outline-offset:4px}
 .title{flex:1}
 .title h2{margin:0;font-size:32px;line-height:1;font-weight:700;letter-spacing:-.02em}
 .title p{margin:6px 0 0;font:500 12px/1.3 'IBM Plex Mono',monospace;color:rgba(255,255,255,.85)}
-.go{position:absolute;right:14px;top:50px;background:var(--yellow);color:var(--ink);font-weight:700;font-size:13px;
+.go{position:absolute;right:14px;top:12px;background:var(--yellow);color:var(--ink);font-weight:700;font-size:13px;
   padding:6px 10px;border-radius:4px;transform:rotate(4deg)}
 
 /* the next booklet: not written yet */
-.book.later{width:min(220px,62vw);background:transparent;border:2px dashed #4a4c50;box-shadow:none;color:var(--muted);
+.book.later{width:min(220px,62vw);background:transparent;border:2px dashed #c4c7cc;box-shadow:none;color:var(--muted);
   align-items:center;justify-content:center;text-align:center;padding:16px;font-size:14px;line-height:1.4}
-.book.later .num{background:#3a3c40;color:var(--muted);margin-bottom:12px}
+.book.later .num{background:#eceef1;color:var(--muted);margin-bottom:12px}
 
+h1{margin:0;font-size:clamp(28px,6vw,44px);line-height:1.05;font-weight:700;letter-spacing:-.025em;text-align:center}
+h1 b{color:var(--blue)}
 footer{font-size:13px;color:var(--muted);text-align:center;max-width:520px;line-height:1.5}
-footer kbd{font:500 12px 'IBM Plex Mono',monospace;border:1px solid #4a4c50;border-radius:3px;padding:0 4px}
+footer kbd{font:500 12px 'IBM Plex Mono',monospace;border:1px solid #c4c7cc;border-radius:3px;padding:0 4px}
 @media (max-width:520px){ .book.later{aspect-ratio:auto;width:100%;flex-direction:row;gap:12px} .book.later .num{margin:0} }
 </style>
 
+<h1>g<b>LOW</b>COST build guides</h1>
+
 <main class="shelf">
   <a class="book" href="frame.html" aria-label="Frame: 46 steps, 171 parts. Open the build guide.">
-    <div class="top"><span class="mark">g<b>LOW</b>COST</span><span class="age">11+</span></div>
+    <div class="top"><span class="mark">g<b>LOW</b>COST</span></div>
     <span class="go">Open →</span>
     <div class="art">
       <svg viewBox="-150 -238 300 335" aria-hidden="true">
