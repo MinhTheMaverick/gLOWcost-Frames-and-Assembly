@@ -116,6 +116,24 @@ body.phone #home{top:max(14px,env(safe-area-inset-top,0px));right:max(16px,env(s
   #bottom{padding:4px;bottom:max(8px,env(safe-area-inset-bottom,0px))} #magBtn{width:34px;height:34px} #magBtn svg{width:24px;height:24px} #keyHint{bottom:58px} }
 @media (max-width:520px){ #bottom .mid{gap:6px} #bottom button{padding:10px 10px} #magBtn{width:40px;height:40px;padding:0} }
 @media (prefers-reduced-motion: reduce){ :root{--motion:0} }
+/* last step: other people's detectors, and a photo of yours */
+#gallery{position:absolute;display:flex;flex-direction:column;gap:8px;box-sizing:border-box;padding:10px;background:var(--band);border:1px solid var(--line);border-radius:6px;backdrop-filter:blur(4px);z-index:5}
+#gallery[hidden],#shot[hidden]{display:none}
+#gallery .head{font-family:var(--mono);font-size:var(--t-s);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#gallery .wall{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:6px}
+#gallery .wall button{padding:0;border:0;border-radius:3px;overflow:hidden;background:#1c1d1f;min-height:0;position:relative}
+#gallery .wall img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;transition:opacity .6s}
+#gallery .take{background:#f2c230;border-color:#f2c230;color:#1c1d1f;font-weight:600}
+#gallery .take:hover{background:#f6cf52}
+body.phone #gallery{padding:8px;gap:6px}
+body.phone #gallery .wall{grid-template-columns:repeat(3,1fr)}
+body.phone #gallery .take{padding:8px 10px}
+#shot{position:fixed;inset:0;background:rgba(0,0,0,.62);display:grid;place-items:center;z-index:50;padding:16px;box-sizing:border-box}
+#shot .box{background:#2a2b2d;border:1px solid var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:10px;max-width:min(560px,100%);max-height:100%;box-sizing:border-box}
+#shot img{display:block;max-width:100%;max-height:calc(100vh - 120px);object-fit:contain;border-radius:4px;margin:0 auto}
+#shot .row{display:flex;gap:8px}
+#shot .row button{flex:1}
+#shot .row .main{background:#f2c230;border-color:#f2c230;color:#1c1d1f;font-weight:600}
 </style>
 
 <div id="app">
@@ -124,6 +142,8 @@ body.phone #home{top:max(14px,env(safe-area-inset-top,0px));right:max(16px,env(s
   <div id="why" hidden></div>
   <svg id="leader" width="100%" height="100%" style="position:absolute;inset:0;pointer-events:none"><line id="leaderLine" x1="0" y1="0" x2="0" y2="0" stroke="#d7262b" stroke-width="1.6" stroke-dasharray="5 4" visibility="hidden"/><circle id="leaderDot" r="4" fill="#d7262b" visibility="hidden"/></svg>
   <div id="callout" hidden><div class="prog" id="cProg"></div><div class="q" id="cQ"></div><div class="row" id="cRow"><button id="cYes">Confirm</button></div></div>
+<div id="gallery" hidden><div class="head">Other gLOWCOST detectors</div><div class="wall"></div><button class="take" type="button">Take a photo of yours</button><input id="shotFile" type="file" accept="image/*" hidden></div>
+<div id="shot" hidden><div class="box"><img alt=""><div class="row"></div></div></div>
   <div id="cam2" hidden><span id="cam2Label"></span></div><div id="cam2b" class="cam2x" hidden><span class="badge no"></span></div>
   <div id="labels"></div>
   <div id="keyHint" hidden><kbd>Space</kbd> to continue &nbsp;·&nbsp; <kbd>Backspace</kbd> to go back</div>
@@ -504,6 +524,60 @@ function hatModel(){ const g=new THREE.Group(), T=0.156, e=0.002;
     const pin=new THREE.Mesh(new THREE.CircleGeometry(0.2,14),BM.plastic); pin.position.set(x,y,9.125); g.add(pin); }
   return g; }
 
+/* ---- the last step: a wall of other people's detectors (photos listed in gallery/photos.json), and a photo card of your own.
+   Everything stays in the browser: the photo is turned into a card here and saved or shared from this device. */
+const GAL={ el:document.getElementById('gallery'), wall:document.querySelector('#gallery .wall'), shot:document.getElementById('shot'), file:document.getElementById('shotFile'),
+  photos:[], shown:[], next:0, key:'', timer:0 };
+GAL.el.addEventListener('pointerdown', e=>e.stopPropagation()); GAL.el.addEventListener('click', e=>e.stopPropagation());
+GAL.shot.addEventListener('pointerdown', e=>e.stopPropagation());
+fetch('gallery/photos.json').then(r=>r.ok?r.json():[]).then(list=>{ GAL.photos=list.map(n=>'gallery/'+n); GAL.key=''; }).catch(()=>{});
+function galSlots(){ if (isPhone()) return 3; const r=GAL.el.getBoundingClientRect(); const tw=(r.width-26)/2, th=tw*0.78;
+  return 2*Math.max(1, Math.min(5, Math.floor((r.height-20-16-40-16+6)/(th+6)))); }
+function galFill(){ const n=Math.min(galSlots(), GAL.photos.length); GAL.wall.innerHTML=''; GAL.shown=[];
+  GAL.wall.style.gridTemplateRows=isPhone()?'1fr':`repeat(${Math.max(1,n/2)},1fr)`;
+  for (let i=0;i<n;i++){ const src=GAL.photos[i]; const b=document.createElement('button'); b.type='button'; b.setAttribute('aria-label','Larger photo');
+    const im=new Image(); im.src=src; im.alt='A gLOWCOST detector'; b.appendChild(im); b.onclick=()=>{ const top=b.querySelector('img:last-child'); openShot(top.src,[['Close',closeShot,true]]); }; GAL.wall.appendChild(b); GAL.shown.push(src); }
+  GAL.next=n; GAL.wall.hidden=n===0; }
+function galCycle(){ /* every few seconds one photo makes way for another, so the wall keeps changing */
+  if (GAL.el.hidden || GAL.photos.length<=GAL.shown.length) return;
+  const slot=Math.floor(Math.random()*GAL.shown.length), b=GAL.wall.children[slot], im=b&&b.querySelector('img:last-child'); if (!im) return;
+  let src=GAL.photos[GAL.next%GAL.photos.length]; GAL.next++; let guard=0; while (GAL.shown.includes(src) && guard++<GAL.photos.length){ src=GAL.photos[GAL.next%GAL.photos.length]; GAL.next++; }
+  GAL.shown[slot]=src; const n=new Image(); n.alt=im.alt; n.style.opacity=0;   /* the new photo fades in over the old one, so no slot ever goes dark */
+  n.onload=()=>{ b.appendChild(n); requestAnimationFrame(()=>requestAnimationFrame(()=>{ n.style.opacity=1; setTimeout(()=>im.remove(),700); })); }; n.src=src; }
+function galleryTick(){
+  const on=!!(STEPS[cur] && STEPS[cur].gallery) && !reversing;
+  if (GAL.el.hidden===on){ GAL.el.hidden=!on; clearInterval(GAL.timer); if (on){ GAL.key=''; GAL.timer=setInterval(galCycle,3500); } else closeShot(); }
+  if (!on) return;
+  const W=renderer.domElement.clientWidth, H=renderer.domElement.clientHeight, r=cam2Rect(W,H,true), key=[W,H,r.x,r.y,r.w,r.h,GAL.photos.length,isPhone()].join();
+  if (key===GAL.key) return; GAL.key=key;
+  Object.assign(GAL.el.style,{left:r.x+'px', bottom:r.y+'px', width:r.w+'px', height:r.h+'px'}); galFill(); }
+function openShot(src, buttons){ const img=GAL.shot.querySelector('img'), row=GAL.shot.querySelector('.row'); img.src=src; row.innerHTML='';
+  for (const [t,f,main] of buttons){ const b=document.createElement('button'); b.type='button'; b.textContent=t; if (main) b.className='main'; b.onclick=f; row.appendChild(b); }
+  GAL.shot.hidden=false; }
+function closeShot(){ if (GAL.shot.hidden) return; GAL.shot.hidden=true; const img=GAL.shot.querySelector('img'); if (img.dataset.url){ URL.revokeObjectURL(img.dataset.url); img.dataset.url=''; } }
+GAL.shot.addEventListener('click', e=>{ if (e.target===GAL.shot) closeShot(); });
+addEventListener('keydown', e=>{ if (e.key==='Escape' && !GAL.shot.hidden){ e.stopImmediatePropagation(); closeShot(); } }, true);
+document.querySelector('#gallery .take').onclick=()=>{ GAL.file.value=''; GAL.file.click(); };
+async function loadPhoto(file){
+  if (window.createImageBitmap){ try { return await createImageBitmap(file,{imageOrientation:'from-image'}); } catch(e){} }
+  return await new Promise((ok,no)=>{ const u=URL.createObjectURL(file), im=new Image(); im.onload=()=>{ ok(im); URL.revokeObjectURL(u); }; im.onerror=no; im.src=u; }); }
+async function photoCard(file){ /* the photo, cropped to between 4:3 and 4:5, over a dark band: "I built a gLOWCOST detector" and the date */
+  const ph=await loadPhoto(file), W=1080, a=ph.height/ph.width, Hp=Math.round(W*Math.min(1.25,Math.max(0.75,a))), band=200;
+  const c=document.createElement('canvas'); c.width=W; c.height=Hp+band; const g=c.getContext('2d');
+  const s=Math.max(W/ph.width, Hp/ph.height), dw=ph.width*s, dh=ph.height*s; g.drawImage(ph,(W-dw)/2,(Hp-dh)/2,dw,dh);
+  g.fillStyle='#1c1d1f'; g.fillRect(0,Hp,W,band); g.fillStyle='#f2c230'; g.fillRect(0,Hp,W,10);
+  const font=getComputedStyle(document.body).fontFamily;
+  g.fillStyle='#f6f4f0'; g.font=`600 56px ${font}`; g.textBaseline='alphabetic'; g.fillText('I built a gLOWCOST detector',60,Hp+102);
+  g.fillStyle='#a6a8ad'; g.font=`400 34px ${font}`; g.fillText(new Date().toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}),60,Hp+158);
+  return await new Promise(ok=>c.toBlob(ok,'image/png')); }
+GAL.file.addEventListener('change', async ()=>{ const f=GAL.file.files&&GAL.file.files[0]; if (!f) return;
+  let blob; try { blob=await photoCard(f); } catch(e){ return; }
+  const name='my-glowcost-detector.png', url=URL.createObjectURL(blob), file=new File([blob],name,{type:'image/png'});
+  const save=()=>{ const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); };
+  const btns=[]; if (navigator.canShare && navigator.canShare({files:[file]})) btns.push(['Share',()=>navigator.share({files:[file], text:'I built a gLOWCOST detector'}).catch(()=>{}),true]);
+  btns.push(['Save',save,!btns.length]); btns.push(['Close',closeShot]);
+  openShot(url,btns); GAL.shot.querySelector('img').dataset.url=url; });
+
 /* ============================== detector parts ============================== */
 /* The finished frame is where this guide starts. Everything fixed to it is placed in the frame's own coordinates:
    y up from the foot plane, front +z, the box face is the back (-z). Levels: 0 top, 1 middle, 2 bottom. */
@@ -749,7 +823,7 @@ const DTRAY_PSCREWS=[0,1,2,3].map(n=>{ const s=piScrewObj(); s.visible=true; s.q
 function syncDetTrays(){ const used=id=>parts[id].userData.home!=='none';
   const left=Object.keys(parts).filter(id=>parts[id].userData.kind==='dscrew' && !used(id)).length; DTRAY_SCREWS.forEach((s,n)=>s.visible=n<left);
   const pl=[0,1,2,3].filter(k=>!used('ps'+k)).length; DTRAY_PSCREWS.forEach((s,n)=>s.visible=n<pl); }
-function detPerFrame(){ updateLeads(); updateCables(); syncDetTrays(); inputTags.visible=!!(STEPS[cur] && STEPS[cur].inputTags); }
+function detPerFrame(){ updateLeads(); updateCables(); syncDetTrays(); galleryTick(); inputTags.visible=!!(STEPS[cur] && STEPS[cur].inputTags); }
 function detReset(){ for (const id of ['tsq',...NOTES.map(n=>n[0])]){ const o=parts[id]; scene.add(o); o.position.set(0,-80,0); o.userData.home='none'; }
   leadMeshes.forEach(l=>l.key=''); cableMeshes.forEach(c=>c.key=''); }
 
@@ -1710,7 +1784,7 @@ const STEPS=[
   run:async i=>{ if (i){ place('usb','port'); return; } await moveTo('usb','port',{label:'power', lift:4, approach:[0,-1,0], adist:3}); } },
  {ph:'ddone', hands:'two hands', s:'Turn the detector round on its feet so that the box faces you.', n:'Turn it slowly, and let the leads and cables follow without pulling on their plugs.', cam:['build','far',1.35], parts:{},
   run:async i=>{ await turnAround('detUp',i); } },
- {ph:'ddone', s:'Congratulations! You have built the gLOWCOST detector.', n:'Before it is switched on for the first time, go over every screw and every lead once more. Power-up and setup are the next stage.', cam:['build','chair',1.15], parts:{},
+ {ph:'ddone', gallery:true, s:'Congratulations! You have built the gLOWCOST detector.', n:'Before it is switched on for the first time, go over every screw and every lead once more. Then take a photo of it to keep or share, next to the other gLOWCOST detectors. Power-up and setup are the next stage.', cam:['build','chair',1.15], cam2:{compare:'gallery', gallery:true}, parts:{},
   run:async i=>{ if (i || VCLOCK!==null) return; const c=camState.tgt.clone(), r0=camState.pos.clone().sub(c);
     await tween(9000, (e,t)=>{ camState.pos.copy(r0).applyAxisAngle(new THREE.Vector3(0,1,0), 0.6*Math.sin(2*Math.PI*t)).add(c); }, 'cam'); } },
 ];
@@ -1996,7 +2070,7 @@ function renderCompare(W,H,{x,y,pw,ph,stack}){ const gap=12; const S=CMPS[cam2.c
   renderer.setViewport(A.x,A.y,pw,ph); renderer.setScissor(A.x,A.y,pw,ph); renderer.render(S.ok,S.cam);
   renderer.setViewport(B.x,B.y,pw,ph); renderer.setScissor(B.x,B.y,pw,ph); renderer.render(S.no,S.cam);
   renderer.setScissorTest(false); renderer.setViewport(0,0,W,H); }
-function renderCam2(){ if (!cam2){ cam2El.hidden=true; cam2bEl.hidden=true; return; }
+function renderCam2(){ if (!cam2 || cam2.gallery){ cam2El.hidden=true; cam2bEl.hidden=true; return; }
   if (cam2.compare){ const W=renderer.domElement.clientWidth, H=renderer.domElement.clientHeight; renderCompare(W,H,cam2Rect(W,H,true)); return; }
   cam2bEl.hidden=true; if (cam2Lab.dataset.k!=='cam2'){ cam2Lab.dataset.k='cam2'; cam2Lab.className=''; cam2Lab.innerHTML=''; }
   const W=renderer.domElement.clientWidth, H=renderer.domElement.clientHeight; const {x,y,w,h}=cam2Rect(W,H);
