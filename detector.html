@@ -528,7 +528,8 @@ GAL.el.querySelector('.send').innerHTML = GALLERY_SEND_TO
 fetch('gallery/photos.json').then(r=>r.ok?r.json():[]).then(list=>{ GAL.photos=list.map(n=>'gallery/'+n); GAL.key=''; }).catch(()=>{});
 function galSlots(){ if (isPhone()) return 3; const r=GAL.el.getBoundingClientRect(), s=GAL.el.querySelector('.send').getBoundingClientRect(); const tw=(r.width-26)/2, th=tw*0.78;
   return 2*Math.max(1, Math.min(5, Math.floor((r.height-20-16-s.height-16+6)/(th+6)))); }
-function galFill(){ const n=Math.min(galSlots(), GAL.photos.length); GAL.wall.innerHTML=''; GAL.shown=[];
+function galFill(){ /* keep one photo back so the wall still changes, and fill whole rows only */
+  const L=GAL.photos.length, room=Math.min(galSlots(), L>3 ? L-1 : L), n=isPhone() ? room : Math.max(Math.min(L,2), room-room%2); GAL.wall.innerHTML=''; GAL.shown=[];
   GAL.wall.style.gridTemplateRows=isPhone()?'1fr':`repeat(${Math.max(1,n/2)},1fr)`;
   for (let i=0;i<n;i++){ const src=GAL.photos[i], d=document.createElement('div'), im=new Image(); im.src=src; im.alt='A gLOWCOST detector'; im.draggable=false; d.appendChild(im); GAL.wall.appendChild(d); GAL.shown.push(src); }
   GAL.next=n; GAL.wall.hidden=n===0; }
