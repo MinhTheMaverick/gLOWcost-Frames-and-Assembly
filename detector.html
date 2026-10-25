@@ -425,8 +425,10 @@ function tipped(from, pivot, axis, angle){ // rotate a pose about a world line
   const q=qAA(axis,angle); const pos=from.pos.clone().sub(pivot).applyQuaternion(q).add(pivot);
   return {pos, quat:qMul(q,from.quat)};
 }
-POSE.lying = tipped(POSE.inverted, new THREE.Vector3(0,0,-16+12.16), X, Math.PI/2);   // spans z -3.8 .. 27.7
-POSE.lying2 = {pos:POSE.lying.pos.clone().add(new THREE.Vector3(0,0,-23.2)), quat:POSE.lying.quat.clone()}; // slid back: z -27 .. 4.5
+POSE.lyingTip = tipped(POSE.inverted, new THREE.Vector3(0,0,-16+12.16), X, Math.PI/2);   // where it lands when tipped toward you: spans z -3.8 .. 27.7
+const LYING_BACK=3;                                                                      // then slid 3 cm away from you, so that a rail can go in at the feet
+POSE.lying = {pos:POSE.lyingTip.pos.clone().add(new THREE.Vector3(0,0,-LYING_BACK)), quat:POSE.lyingTip.quat.clone()};
+POSE.lying2 = {pos:POSE.lyingTip.pos.clone().add(new THREE.Vector3(0,0,-23.2)), quat:POSE.lying.quat.clone()}; // slid back: z -27 .. 4.5
 function feetEdge(pose, lz=-12.16){ // bottom edge of the feet face of the side lying on the table: local (0,0,-12.16) on its back, (0,0,12.16) on its front
   const tmp=new THREE.Object3D(); tmp.position.copy(pose.pos); tmp.quaternion.copy(pose.quat); tmp.updateMatrixWorld();
   return tmp.localToWorld(new THREE.Vector3(0,-FOOT_DROP,lz)); }   // the bottom edge of the feet themselves
@@ -435,10 +437,11 @@ POSE.upright = tipped(POSE.lying2, feetEdge(POSE.lying2), X, Math.PI/2);        
 POSE.left  = {pos:POSE.lying.pos.clone(), quat:qMul(qAA(Z, Math.PI/2),POSE.lying.quat)};
 POSE.right = {pos:POSE.lying.pos.clone(), quat:qMul(qAA(Z,-Math.PI/2),POSE.lying.quat)};
 POSE.front = {pos:POSE.lying.pos.clone(), quat:qMul(qAA(Z,-Math.PI),POSE.lying.quat)};
-POSE.front2 = {pos:POSE.front.pos.clone().add(new THREE.Vector3(0,0,-24.2)), quat:POSE.front.quat.clone()};  // slid back to stand it up
+POSE.frontNear = {pos:POSE.front.pos.clone().add(new THREE.Vector3(0,0,LYING_BACK)), quat:POSE.front.quat.clone()};   // on its front, slid back toward you
+POSE.front2 = {pos:POSE.frontNear.pos.clone().add(new THREE.Vector3(0,0,-24.2)), quat:POSE.front.quat.clone()};  // slid back to stand it up
 POSE.upFront = tipped(POSE.front2, feetEdge(POSE.front2, HALF+1), X, Math.PI/2);          // standing, the box rail facing away
 POSE.__roll = {pos:new THREE.Vector3(), quat:new THREE.Quaternion()};
-POSE.headTip = tipped(POSE.front, new THREE.Vector3(0,0,POSE.front.pos.z-(0.6+POST_L)), X, -Math.PI/2);   // stood on its top, the box rail on the far side
+POSE.headTip = tipped(POSE.frontNear, new THREE.Vector3(0,0,POSE.frontNear.pos.z-(0.6+POST_L)), X, -Math.PI/2);   // stood on its top, the box rail on the far side
 POSE.headDown = {pos:POSE.headTip.pos.clone().add(new THREE.Vector3(0,0,26)), quat:POSE.headTip.quat.clone()};   // then slid back toward you
 { const q=qMul(qAA(Z,Math.PI),POSE.headDown.quat), g=new THREE.Object3D(); g.quaternion.copy(q); g.updateMatrixWorld(true);
   const c=new THREE.Vector3(0,15.3,0); const g0=new THREE.Object3D(); g0.position.copy(POSE.headDown.pos); g0.quaternion.copy(POSE.headDown.quat); g0.updateMatrixWorld(true);
@@ -1214,11 +1217,10 @@ const FACES={ // the face on the table: its rails, the way into the frame (up wh
 for (const f in FACES){ const F=FACES[f]; const bx=new THREE.Vector3(0,-1,0), by=F.up.clone(), bz=new THREE.Vector3().crossVectors(bx,by);
   home('tsq','m_'+f, build, F.base.clone().setY(TOP_Y).toArray(), new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(bx,by,bz))); }
 home('tsq','park',scene,[-14,1.25,-18], qAA(Z,-0.042));        // on the work tray beyond the frame, head down, blade tip resting
-// rails go down a little short of their mark, nearer the feet, and slide up to it under the T-square
-for (const r of [4,8,6,10,7,11,5,9]){ const h=parts['rail'+r].userData.homes.build; home('rail'+r,'rough',build,h.pos.clone().add(new THREE.Vector3(0,-1.5,0)).toArray(),h.quat); }
-// on the right side the left rails lie right above these spots: lower each one in through the gap beyond the rail above, then slide it toward the feet
-home('rail7','gap',build,[HALF,23,0],parts.rail7.userData.homes.build.quat); home('rail11','gap',build,[HALF,10,0],parts.rail11.userData.homes.build.quat);
-home('rail4','gap',build,[0,23,HALF],parts.rail4.userData.homes.build.quat);  home('rail9','gap',build,[0,10,HALF],parts.rail9.userData.homes.build.quat);   // on its front: the back rails are above
+// rails go in from the open foot end of the posts, with their brackets riding in the post grooves (lowered in from above, the keys would scratch
+// across the grooves), slide up to a little short of the mark, and the last bit under the T-square
+for (const r of [4,8,6,10,7,11,5,9]){ const h=parts['rail'+r].userData.homes.build; home('rail'+r,'rough',build,h.pos.clone().add(new THREE.Vector3(0,-1.5,0)).toArray(),h.quat);
+  home('rail'+r,'entry',build,h.pos.clone().setY(r>=8 ? -3.0 : 1.0).toArray(),h.quat); }   /* just far enough that its brackets clear the post ends (bottom rails: brackets on the head side) */
 function guideCam(i,line){ const x=STAGE_X(i)-1.6, z=STAGE_HEAD(i)+1.6; const c={ortho:true, at:[x,2,z], dir:[0,1,0.0001], size:3.4};
   if (line) c.line=[[x-6,4.6,STAGE_HEAD(i)],[x+4,4.6,STAGE_HEAD(i)]]; return c; }   /* the post's end and its guide, from above; the dashed line is the end face both must reach */
 function measureCam(f,mark){ const F=FACES[f], P=POSE[F.pose]; const g=new THREE.Object3D(); g.position.copy(P.pos); g.quaternion.copy(P.quat); g.updateMatrixWorld(true);
@@ -1243,13 +1245,12 @@ async function tsqOff(dest,i){ // the same way out: lift the hook, slide toward 
   await tween(450, t=>o.position.lerpVectors(p1,pB,t)); await tween(700, t=>o.position.lerpVectors(pB,pA,t));
   const h=o.userData.homes[dest]; const {p:p2,q:q2}=worldOf(h.parent,h.pos,h.quat); const plan=planCarry(o,pA,q1,p2,q2,{minLift:3}); o.userData.phase='carry';
   await tween(700+plan.len*8, t=>plan.at(t)); place('tsq',dest); o.userData.phase=null; }
-async function measureRail(r,f,mark,i){ // rail down short of the mark, T-square on, slide the rail to the mark, two screws
+async function measureRail(r,f,mark,i){ // in at the foot end, slide up short of the mark, T-square on, slide to the mark, two screws
   if (parts.tsq.userData.home==='m_'+f) await tsqOff('park',i);
-  if (parts['rail'+r].userData.homes.gap){ await moveTo('rail'+r,'gap',{instant:i,lift:30,careful:true}); const o=parts['rail'+r];
-    if (!i){ const lab=addLabel('slide toward you','fly',o,[0,3,0]); const a=o.position.clone(), b=o.userData.homes.rough.pos; o.userData.phase='slide under';
-      await wait(250); await tween(1800, t=>o.position.lerpVectors(a,b,t)); o.userData.phase=null; removeLabel(lab); }
-    place('rail'+r,'rough'); }
-  else await moveTo('rail'+r,'rough',{instant:i,lift:30,careful:true});
+  await moveTo('rail'+r,'entry',{instant:i,lift:30,careful:true}); const o0=parts['rail'+r];
+  if (!i){ const lab=addLabel('slide in along the posts','fly',o0,[0,3,0]); const a=o0.position.clone(), b=o0.userData.homes.rough.pos; o0.userData.phase='slide in';
+    await wait(250); await tween(1400+(b.y-a.y)*70, t=>o0.position.lerpVectors(a,b,t)); o0.userData.phase=null; removeLabel(lab); }
+  place('rail'+r,'rough');
   await tsqOn(f,i);
   const o=parts['rail'+r], h=o.userData.homes.build;
   if (i) place('rail'+r,'build');
@@ -1466,25 +1467,26 @@ const FRAME_STEPS=[
  {ph:'brackets', s:'Fit a bracket in the groove that now faces each guide, slide it against the guide, and fix it to the post with one screw.', n:'Screw it to the post only, as before. The guide rail is not attached to anything; it comes away once all eight brackets are on.', rep:'×4', cam:[[{box:[[-39,0,-29.5],[3.5,4.5,-9.5]]}],'brk8',1.0], cam2:{compare:'guideScrew2'}, parts:{bracket:4,screw:4},
   run:async i=>{ const b=postIds.map((id,k)=>`b_p${k}z`); for (let n=0;n<b.length;n++) await moveTo(b[n],'on',{instant:i,approach:APPROACH.bracketPost,label:n===0?'bracket ×4':null}); await driveAll(b.map(id=>parts[id].userData.postScrew),{instant:i,quick:true}); } },
  {ph:'brackets', s:'Put the guide rails back in the long tray, and put a HEAD note on the end of each post where the guides were.', cam:[[{box:[[-39,0,-29.5],[3.5,4.5,-9.5]]}],'brk8',1.0], parts:{note:4},
-  run:async i=>{ for (let k=3;k>=0;k--) await moveTo('rail'+k,'storage',{instant:i,careful:true,label:k===3?CAREFUL:null}); await par(...[0,1,2,3].map(k=>moveTo('n_head'+k,'on',{instant:i,delay:k*200,label:k===0?'HEAD note ×4':null}))); } },
- {ph:'posts', s:'Put the posts back in the long tray.', cam:[[{box:[[-81,0,-60],[-47,3,-40]]}],'chair',1.15], parts:{},
+  run:async i=>{ await par(...[3,2,1,0].map((k,n)=>moveTo('rail'+k,'storage',{instant:i,delay:n*200,label:n===0?'guide rail ×4':null}))); await par(...[0,1,2,3].map(k=>moveTo('n_head'+k,'on',{instant:i,delay:k*200,label:k===0?'HEAD note ×4':null}))); } },
+ {ph:'posts', s:'Put the posts back in the long tray.', cam:[[{box:[[-81,0,-60],[4,3,-40]]},{box:[[-20,0,-30],[4,3,20]]}],'far',1.0], parts:{},
   run:async i=>{ await par(...postIds.map((id,k)=>moveTo(id,'storage',{instant:i,delay:k*1400,careful:true,label:k===0?CAREFUL:null}))); } },
  // ---- rails
  {ph:'rails', s:'Take the twelve rails from the long tray and lay them in the work tray.', cam:[railIds(12),'chair',1.2], parts:{rail:12},
-  run:async i=>{ const col=async ids=>{ for (const id of ids) await moveTo(id,'stage',{instant:i,label:id==='rail0'?'rail ×12':null}); }; await par(col(['rail0','rail1','rail2','rail3','rail8','rail5']), col(['rail6','rail7','rail4','rail9','rail10','rail11']));   /* rails 4 and 8 have traded spots */ } },
+  run:async i=>{ const cols=[['rail0','rail1','rail2','rail3','rail8','rail5'],['rail6','rail7','rail4','rail9','rail10','rail11']];   /* rails 4 and 8 have traded spots; the front row leaves first so none catches up with the one ahead */
+    await par(...cols.flatMap(c=>c.map((id,row)=>moveTo(id,'stage',{instant:i,delay:(5-row)*120,label:id==='rail5'?'rail ×12':null})))); } },
  {ph:'rails', s:'Slide three T-nuts into the top groove of each rail: one near each end and one in the middle.', rep:'×12', cam:[railIds(12),'chair',1.15], parts:{nut:36},
   run:async i=>{ const ids=[]; for(let k=2;k>=0;k--) for(let r=0;r<12;r++) ids.push(`r${r}a${k}`); await par(...ids.map((id,n)=>slideNut(id,{instant:i,delay:n*70,label:n===0?'T-nut ×36':null}))); } },
  {ph:'rails', s:'Roll each rail a half turn, so that those T-nuts face down.', rep:'×12', cam:[railIds(12),'railends',1.0], parts:{},
   marks:()=>railIds(12).forEach(id=>rollArrow(parts[id],X,Math.PI)),
-  run:async i=>{ if(!i) await wait(700); await par(...railIds(12).map((id,k)=>roll(id,X,Math.PI,{instant:i,delay:k*300}))); } },
+  run:async i=>{ if(!i) await wait(700); await par(...railIds(12).map((id,k)=>roll(id,X,Math.PI,{instant:i}))); } },
  {ph:'rails', s:'Slide one T-nut into the groove that now faces up on each rail, and push it to the middle.', rep:'×12', cam:[railIds(12),'chair',1.15], parts:{nut:12},
   run:async i=>{ await par(...railIds(12).map((r,n)=>slideNut(`r${n}b`,{instant:i,delay:n*90,label:n===0?'T-nut ×12':null}))); } },
  {ph:'rails', s:'Choose two rails to be the box rails. Slide two T-nuts, <b>13 cm</b> apart, into a side groove of the first, and one T-nut into the middle of a side groove of the second.', n:'Any two rails will do. Roll both a quarter turn away from you first. Afterwards, stick the BOX RAIL note on the first and the BOX TAB note on the second.', cam:[['rail5','rail8'],'railends',1.1], parts:{nut:3,note:2},
   marks:()=>{ rollArrow(parts.rail5,X,-Math.PI/2); rollArrow(parts.rail8,X,-Math.PI/2); },
-  run:async i=>{ if(!i) await wait(700); await par(roll('rail5',X,-Math.PI/2,{instant:i}), roll('rail8',X,-Math.PI/2,{instant:i,delay:300})); await par(...['r5c0','r5c1','r8c0'].map((id,k)=>slideNut(id,{instant:i,delay:k*220,label:k===0?'T-nut ×3':null}))); await moveTo('n_box','on',{instant:i,label:'BOX RAIL note'}); await moveTo('n_tab','on',{instant:i,label:'BOX TAB note'}); } },
+  run:async i=>{ if(!i) await wait(700); await par(roll('rail5',X,-Math.PI/2,{instant:i}), roll('rail8',X,-Math.PI/2,{instant:i})); await par(...['r5c0','r5c1','r8c0'].map((id,k)=>slideNut(id,{instant:i,delay:k*220,label:k===0?'T-nut ×3':null}))); await moveTo('n_box','on',{instant:i,label:'BOX RAIL note'}); await moveTo('n_tab','on',{instant:i,label:'BOX TAB note'}); } },
  {ph:'rails', s:'Roll both box rails back a quarter turn, toward you.', n:'Their three main T-nuts face down again, like those of the other rails, and the box T-nuts face you.', cam:[['rail5','rail8'],'railends',1.1], parts:{},
   marks:()=>{ rollArrow(parts.rail5,X,Math.PI/2); rollArrow(parts.rail8,X,Math.PI/2); },
-  run:async i=>{ if(!i) await wait(700); await par(roll('rail5',X,Math.PI/2,{instant:i}), roll('rail8',X,Math.PI/2,{instant:i,delay:300})); } },
+  run:async i=>{ if(!i) await wait(700); await par(roll('rail5',X,Math.PI/2,{instant:i}), roll('rail8',X,Math.PI/2,{instant:i})); } },
  {ph:'rails', check:{items:()=>railIds(12).map((id,r)=>({id, at:[RAIL_L/2-HOLE,0,0], q: r===5?'Box rail: three T-nuts facing down, one facing up, and two on the side.': r===8?'Box tab rail: three T-nuts facing down, one facing up, and one on the side.':`Rail ${r+1}: three T-nuts facing down and one facing up.`}))}, s:'Check that each rail has three T-nuts on one side and one on the opposite side.', n:'The two box rails also have T-nuts on a third side.', cam:[railIds(12),'railends',1.0], parts:{},
   run:async()=>{} },
  // ---- brackets on rails
@@ -1492,7 +1494,7 @@ const FRAME_STEPS=[
   run:async i=>{ await par(...railIds(4).map((id,k)=>moveTo(id,'aside',{instant:i,delay:k*500,careful:true,label:k===0?CAREFUL:null}))); await moveTo('n_aside','on',{instant:i,label:'note'}); } },
  {ph:'brackets', s:'Fit a bracket on each end of the other eight rails, and fix each bracket to its rail with one screw.', n:'Roll each rail a half turn first, so that its side with three T-nuts faces up. Tighten the screws only until they are snug.', rep:'×8', cam:[railIds(12).slice(4),'railends',1.05], parts:{bracket:16,screw:16},
   marks:()=>railIds(12).slice(4).forEach(id=>rollArrow(parts[id],X,Math.PI)),
-  run:async i=>{ if(!i) await wait(700); await par(...railIds(12).slice(4).map(async (id,k)=>{ await roll(id,X,Math.PI,{instant:i,delay:k*300}); parts[id].quaternion.copy(parts[id].userData.homes.stage.quat); })); const b=[]; for(let r=4;r<12;r++) b.push(...railBr(r)); await par(...b.map((id,n)=>moveTo(id,'on',{instant:i,approach:APPROACH.bracketRail,delay:n*120,label:n===0?'bracket ×16':null}))); await driveAll(b.map(id=>parts[id].userData.railScrew),{instant:i,quick:true,fastAfter:4}); } },
+  run:async i=>{ if(!i) await wait(700); await par(...railIds(12).slice(4).map(async (id,k)=>{ await roll(id,X,Math.PI,{instant:i}); parts[id].quaternion.copy(parts[id].userData.homes.stage.quat); })); const b=[]; for(let r=4;r<12;r++) b.push(...railBr(r)); await par(...b.map((id,n)=>moveTo(id,'on',{instant:i,approach:APPROACH.bracketRail,delay:n*120,label:n===0?'bracket ×16':null}))); await driveAll(b.map(id=>parts[id].userData.railScrew),{instant:i,quick:true,fastAfter:4}); } },
  {ph:'brackets', s:'Put six of these rails back in the long tray.', n:'Leave the two box rails out, at the back right of the work tray with their notes facing up. They are fitted first.', cam:[[{box:[[-46,0,-60],[42,3,-18]]}],'chair',1.0], parts:{},
   run:async i=>{ await moveTo('rail5','apart',{instant:i,careful:true,label:'box rails · notes up'}); await moveTo('rail8','apart',{instant:i,careful:true}); await par(...['rail6','rail7','rail4','rail9','rail10','rail11'].map((id,k)=>moveTo(id,'storage',{instant:i,delay:k*450,careful:true,label:k===0?CAREFUL:null}))); } },
  // ---- top square, inverted
@@ -1509,38 +1511,38 @@ const FRAME_STEPS=[
   run:async()=>{} },
  // ---- on its back
  {ph:'back', hands:'two hands', s:'Tip the frame toward you so that it lies down with its feet toward you.', n:'Use both hands, one on each of the two posts nearest you.', cam:['build','far',1.25], parts:{},
-  run:async i=>{ await moveTo('n_top','storage',{instant:i}); await tipBuild('lying', new THREE.Vector3(0,0,-16+12.16), X, Math.PI/2, {instant:i}); } },
- {ph:'back', s:'Leave the frame lying where it is, right in front of you.', cam:['build','far',1.15], parts:{note:1},
-  run:async i=>{ await moveTo('n_back','on',{instant:i,label:'note'}); } },
+  run:async i=>{ await moveTo('n_top','storage',{instant:i}); await tipBuild('lyingTip', new THREE.Vector3(0,0,-16+12.16), X, Math.PI/2, {instant:i}); } },
+ {ph:'back', s:'Slide the frame about 3 cm away from you, and stick the LYING DOWN note on it.', n:'That leaves room at its feet to slide the rails in from the open foot ends of the posts.', cam:['build','far',1.15], parts:{note:1},
+  run:async i=>{ await slideBuild('lying',{instant:i,dur:900}); await moveTo('n_back','on',{instant:i,label:'note'}); } },
  {ph:'back', s:'In each post, slide the loose T-nuts toward the feet: one to about halfway along, and the other to about 6 cm from the foot.', n:'You do not need to measure. The rails set the exact positions when you fit them.', rep:'×4', cam:['build','lowleft',1.05], parts:{},
   run:async i=>{ for (const p of [3,2,0,1]) await pushNuts(p,i); } },
- {ph:'back', s:'Fit the box rail between the two lower posts, with its far edge <b>13 cm</b> from the head end.', n:'Its note and its box T-nuts face down. This side becomes the back of the frame.', cam:[['rail5','tsq'],'lowleft',1.25], cam2:measureCam('back',13), parts:{rail:1,screw:2},
+ {ph:'back', s:'Slide the box rail in from the open foot end, between the two lower posts, until its far edge is <b>13 cm</b> from the head end.', n:'Keep its brackets in the post grooves all the way along; never lower a rail in from above, or the brackets scratch the grooves. Its note and its box T-nuts face down, and this side becomes the back of the frame.', cam:[['rail5','tsq'],'chair',1.0], cam2:measureCam('back',13), parts:{rail:1,screw:2},
   run:i=>measureRail(5,'back',13,i) },
- {ph:'back', s:'Fit the box tab rail on the same side, with its far edge <b>26 cm</b> from the head end.', n:'Its note and its box T-nut face down, like those of the box rail, and its tabs point away from you.', cam:[['rail8','tsq'],'lowleft',1.25], cam2:measureCam('back',26), parts:{rail:1,screw:2},
+ {ph:'back', s:'Slide the box tab rail in on the same side, until its far edge is <b>26 cm</b> from the head end.', n:'Its note and its box T-nut face down, like those of the box rail, and its tabs point away from you.', cam:[['rail8','tsq'],'chair',1.0], cam2:measureCam('back',26), parts:{rail:1,screw:2},
   run:i=>measureRail(8,'back',26,i) },
  {ph:'back', hands:'two hands', s:'Roll the frame a quarter turn onto its left side.', n:'Take the T-square off first. Slide the frame to your right before you roll it, so that it ends up in front of you.', cam:['build','far',1.4], parts:{},
   run:async i=>{ await tsqOff('park',i); await moveTo('n_back','storage',{instant:i}); await rollFrame(-1,'left',i); } },
- {ph:'back', s:'Fit a middle rail on this side, at <b>13 cm</b>.', cam:[['rail6','tsq'],'lowleft',1.25], cam2:measureCam('left',13), parts:{rail:1,screw:2},
+ {ph:'back', s:'Slide a middle rail in from the foot end on this side, to <b>13 cm</b>.', cam:[['rail6','tsq'],'lowleft',1.0], cam2:measureCam('left',13), parts:{rail:1,screw:2},
   run:i=>measureRail(6,'left',13,i) },
- {ph:'back', s:'Fit a bottom rail on this side, at <b>26 cm</b>.', n:'Its tabs point away from you.', cam:[['rail10','tsq'],'lowleft',1.25], cam2:measureCam('left',26), parts:{rail:1,screw:2},
+ {ph:'back', s:'Slide a bottom rail in from the foot end on this side, to <b>26 cm</b>.', n:'Its tabs point away from you.', cam:[['rail10','tsq'],'lowleft',1.0], cam2:measureCam('left',26), parts:{rail:1,screw:2},
   run:i=>measureRail(10,'left',26,i) },
  {ph:'back', hands:'two hands', s:'Roll the frame over onto its right side.', n:'Take the T-square off first. Roll the frame two quarter turns, back over the box rail side, and slide it back in front of you after each turn.', cam:['build','far',1.4], parts:{},
   run:async i=>{ await tsqOff('park',i); await rollFrame(1,'lying',i); if(!i) await wait(400); await rollFrame(1,'right',i); } },
- {ph:'back', s:'Fit a middle rail on this side, at <b>13 cm</b>.', n:'Another rail lies right above its place, so lower it in just beyond that rail and then slide it toward you.', cam:[['rail7','tsq'],'lowright',1.25], cam2:measureCam('right',13), parts:{rail:1,screw:2},
+ {ph:'back', s:'Slide a middle rail in from the foot end on this side, to <b>13 cm</b>.', cam:[['rail7','tsq'],'lowright',1.0], cam2:measureCam('right',13), parts:{rail:1,screw:2},
   run:i=>measureRail(7,'right',13,i) },
- {ph:'back', s:'Fit a bottom rail on this side, at <b>26 cm</b>.', n:'Lower it in between the two rails above it, then slide it toward you. Its tabs point away from you.', cam:[['rail11','tsq'],'lowright',1.25], cam2:measureCam('right',26), parts:{rail:1,screw:2},
+ {ph:'back', s:'Slide a bottom rail in from the foot end on this side, to <b>26 cm</b>.', n:'Its tabs point away from you.', cam:[['rail11','tsq'],'lowright',1.0], cam2:measureCam('right',26), parts:{rail:1,screw:2},
   run:i=>measureRail(11,'right',26,i) },
  {ph:'back', hands:'two hands', s:'Roll the frame a quarter turn, so that the last open side faces down.', n:'Take the T-square off first.', cam:['build','far',1.4], parts:{},
   run:async i=>{ await tsqOff('park',i); await rollFrame(1,'front',i); } },
- {ph:'back', s:'Fit a middle rail on this side, at <b>13 cm</b>.', n:'The box rail lies right above its place, so lower it in just beyond the box rail and then slide it toward you.', cam:[['rail4','tsq'],'lowright',1.25], cam2:measureCam('front',13), parts:{rail:1,screw:2},
+ {ph:'back', s:'Slide a middle rail in from the foot end on this side, to <b>13 cm</b>.', cam:[['rail4','tsq'],'lowright',1.0], cam2:measureCam('front',13), parts:{rail:1,screw:2},
   run:i=>measureRail(4,'front',13,i) },
- {ph:'back', s:'Fit a bottom rail on this side, at <b>26 cm</b>.', n:'Lower it in between the two rails above it, then slide it toward you. Its tabs point away from you.', cam:[['rail9','tsq'],'lowright',1.25], cam2:measureCam('front',26), parts:{rail:1,screw:2},
+ {ph:'back', s:'Slide a bottom rail in from the foot end on this side, to <b>26 cm</b>.', n:'Its tabs point away from you.', cam:[['rail9','tsq'],'lowright',1.0], cam2:measureCam('front',26), parts:{rail:1,screw:2},
   run:i=>measureRail(9,'front',26,i) },
  {ph:'back', check:{items:()=>[0,1,2,3].map(i=>({id:'post'+i, at:[0,1.5,0], q:`Corner ${i+1}: both rails here are screwed in.`})).concat([{id:'post0', at:[0,15,0], q:'There is nothing in the work tray except the frame and the magnifier.'}])}, s:'Check that every rail has two screws in, and that nothing is left loose in the work tray.', n:'Put the T-square back in the long tray first.', cam:['build','far',1.05], parts:{},
   run:async i=>{ await tsqOff('storage',i); } },
  // ---- finish upside down: tighten, feet, then right way up
- {ph:'up', hands:'two hands', s:'Stand the frame on its head.', n:'Lift the end nearest you up and over the far end until the frame stands on its top, then slide it back toward you. The box rail ends up at the far side.', cam:['tray','far',1.2], parts:{},
-  run:async i=>{ await moveTo('n_back','storage',{instant:i}); await tipBuild('headTip', new THREE.Vector3(0,0,POSE.front.pos.z-TOP_Y), X, -Math.PI/2, {instant:i, dur:3200}); if(!i) await wait(300); await slideBuild('headDown',{instant:i, dur:1800}); } },
+ {ph:'up', hands:'two hands', s:'Stand the frame on its head.', n:'Slide it about 3 cm toward you first. Then lift the end nearest you up and over the far end until the frame stands on its top, and slide it back toward you. The box rail ends up at the far side.', cam:['tray','far',1.2], parts:{},
+  run:async i=>{ await moveTo('n_back','storage',{instant:i}); await slideBuild('frontNear',{instant:i,dur:900}); if(!i) await wait(250); await tipBuild('headTip', new THREE.Vector3(0,0,POSE.frontNear.pos.z-TOP_Y), X, -Math.PI/2, {instant:i, dur:3200}); if(!i) await wait(300); await slideBuild('headDown',{instant:i, dur:1800}); } },
  {ph:'up', s:'Tighten every screw, one level at a time.', n:'First check with the T-square that the top is square.', rep:'×48', cam:['build','chair',1.05], parts:{},
   run:async i=>{ if(i) return; await driveAll(SCREWS,{quick:false,tighten:true,fastAfter:3,fastScale:0.15}); } },
  {ph:'up', s:'Screw a rubber foot onto the end of each post.', n:'With the frame upside down, each foot sits on its post end by itself while you screw it. The feet have their own silver screws, which are in the feet tray; do not use the bracket screws.', cam:['build','high',1.1], parts:{foot:4,fscrew:4},
@@ -1562,9 +1564,9 @@ async function flipToHead(i){ /* lift it and turn it over sideways, the reverse 
     if (lo<0.4) C.y+=0.4-lo; build.quaternion.copy(q); build.position.copy(C).sub(c.clone().applyQuaternion(q)); });
   setPose('headDown'); await settleNuts(false); }
 async function layOnFront(i){ /* slide it away, then lower it toward you onto its front: the box rails end up on top */
-  if (i){ setPose('front'); settleNuts(true); return; }
+  if (i){ setPose('frontNear'); settleNuts(true); return; }
   await slideBuild('headTip',{dur:1800}); await wait(300);
-  await tipBuild('front', new THREE.Vector3(0,0,POSE.front.pos.z-TOP_Y), X, Math.PI/2, {dur:3400}); }
+  await tipBuild('frontNear', new THREE.Vector3(0,0,POSE.frontNear.pos.z-TOP_Y), X, Math.PI/2, {dur:3400}); }
 POSE.detUp = (()=>{ const u=POSE.upFront, f=POSE.final; const c=new THREE.Vector3(0,15.3,0);
   const cf=f.pos.clone().add(c.clone().applyQuaternion(f.quat)); const p=cf.sub(c.clone().applyQuaternion(u.quat)); p.y=u.pos.y; return {pos:p, quat:u.quat.clone()}; })();
 async function standUp(i){ /* from its front: slide it away, lift the far end up onto the feet, slide it back */
