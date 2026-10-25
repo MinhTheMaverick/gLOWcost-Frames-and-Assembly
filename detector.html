@@ -1463,7 +1463,7 @@ const FRAME_STEPS=[
  {ph:'brackets', s:'Roll each post a quarter turn, so that the bracket you just fitted points up, then push each guide rail back against its post.', n:'Pull each guide rail back a little before you roll, so that the bracket’s key comes out of its groove. Afterwards, line each guide up flush with the end of its post again, as Cam 2 shows.', rep:'×4', cam:[[{box:[[-39,0,-29.5],[3.5,4.5,-9.5]]}],'brk8',1.0], camPhone:[[{box:[[-39,0,-29.5],[3.5,4.5,-9.5]]},...postIds],'brk8',1.0], cam2:guideCam(0,true), parts:{},
   marks:()=>postIds.forEach(id=>rollArrow(parts[id],Y,Math.PI/2)),
   run:async i=>{ await par(...[0,1,2,3].map(k=>moveTo('rail'+k,'guideBack',{instant:i,dur:500,delay:k*150}))); if(!i) await wait(300); await par(...postIds.map((id,k)=>roll(id,Y,Math.PI/2,{instant:i,delay:k*450}))); if(!i) await wait(300); await par(...[0,1,2,3].map(k=>moveTo('rail'+k,'guide',{instant:i,dur:500,delay:k*150}))); } },
- {ph:'brackets', s:'Fit a bracket in the groove that now faces each guide, slide it against the guide, and fix it to the post with one screw.', n:'Screw it to the post only, as before. The guide rail is not attached to anything; it comes away once all eight brackets are on.', rep:'×4', cam:[[{box:[[-39,0,-29.5],[3.5,4.5,-9.5]]}],'brk8',1.0], cam2:{compare:'guideScrew'}, parts:{bracket:4,screw:4},
+ {ph:'brackets', s:'Fit a bracket in the groove that now faces each guide, slide it against the guide, and fix it to the post with one screw.', n:'Screw it to the post only, as before. The guide rail is not attached to anything; it comes away once all eight brackets are on.', rep:'×4', cam:[[{box:[[-39,0,-29.5],[3.5,4.5,-9.5]]}],'brk8',1.0], cam2:{compare:'guideScrew2'}, parts:{bracket:4,screw:4},
   run:async i=>{ const b=postIds.map((id,k)=>`b_p${k}z`); for (let n=0;n<b.length;n++) await moveTo(b[n],'on',{instant:i,approach:APPROACH.bracketPost,label:n===0?'bracket ×4':null}); await driveAll(b.map(id=>parts[id].userData.postScrew),{instant:i,quick:true}); } },
  {ph:'brackets', s:'Put the guide rails back in the long tray, and put a HEAD note on the end of each post where the guides were.', cam:[[{box:[[-39,0,-29.5],[3.5,4.5,-9.5]]}],'brk8',1.0], parts:{note:4},
   run:async i=>{ for (let k=3;k>=0;k--) await moveTo('rail'+k,'storage',{instant:i,careful:true,label:k===3?CAREFUL:null}); await par(...[0,1,2,3].map(k=>moveTo('n_head'+k,'on',{instant:i,delay:k*200,label:k===0?'HEAD note ×4':null}))); } },
@@ -2049,14 +2049,19 @@ const CMP={}; { const mk=(flip)=>{ const sc=new THREE.Scene(); sc.background=new
   CMP.ok=mk(false); CMP.no=mk(true); CMP.cam=new THREE.OrthographicCamera(-1,1,1,-1,0.1,50); CMP.cam.position.set(0,0.1,9); CMP.cam.lookAt(0,0.1,0); }
 /* right and wrong for the bracket guides: screwed to the post only, never to the guide rail. Laid out as on the tray and seen from
    the chair: the post lies pointing at you, its guide rail runs off to the left at the far end, the bracket sits in the corner */
-{ const mk=(wrong)=>{ const sc=new THREE.Scene(); sc.background=new THREE.Color(0xf2c230); sc.add(new THREE.HemisphereLight(0xffffff,0x8a847a,0.8)); const d=new THREE.DirectionalLight(0xffffff,0.6); d.position.set(-4,9,7); sc.add(d);
+{ const mk=(wrong,first)=>{ const sc=new THREE.Scene(); sc.background=new THREE.Color(0xf2c230); sc.add(new THREE.HemisphereLight(0xffffff,0x8a847a,0.8)); const d=new THREE.DirectionalLight(0xffffff,0.6); d.position.set(-4,9,7); sc.add(d);
     const post=mesh(new THREE.ExtrudeGeometry(PROFILE,{depth:30,bevelEnabled:false}),M.alu); post.position.set(0,1,0); sc.add(post);                /* head end at z = 0, running toward you and out of the panel */
     const rail=mesh(new THREE.ExtrudeGeometry(PROFILE,{depth:20,bevelEnabled:false}),M.alu); rail.rotation.y=-Math.PI/2; rail.position.set(-1,1,1); sc.add(rail);   /* flush with the head end, its end against the post, out of the panel to the left */
     const b=bracketObj(); b.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(-1,0,0),new THREE.Vector3(0,0,-1),new THREE.Vector3(0,-1,0))); b.position.set(-1,1,2); sc.add(b);
     b.userData.postScrew.visible=true; b.userData.railScrew.visible=wrong;
+    if (first){ /* the bracket from the first round, rolled to point up: on the post's top face at the head end, screwed to the post */
+      const f=bracketObj(); f.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0,1,0),new THREE.Vector3(0,0,-1),new THREE.Vector3(-1,0,0))); f.position.set(0,2,2); sc.add(f);
+      f.userData.postScrew.visible=true; f.userData.railScrew.visible=false; }
     return sc; };
   const cam=new THREE.OrthographicCamera(-1,1,1,-1,0.1,120), t=new THREE.Vector3(-2.4,1,3.4); cam.position.copy(t).add(new THREE.Vector3(-0.5,0.5,1).normalize().multiplyScalar(40)); cam.lookAt(t);   /* low, from the chair and a little to the left: into the bracket */
-  CMPS.guideScrew={ok:mk(false), no:mk(true), cam, half:3.4}; }
+  CMPS.guideScrew={ok:mk(false), no:mk(true), cam, half:3.4};
+  const cam2=cam.clone(), t2=new THREE.Vector3(-2.0,1.8,3.4); cam2.position.copy(t2).add(new THREE.Vector3(-0.5,0.5,1).normalize().multiplyScalar(40)); cam2.lookAt(t2);
+  CMPS.guideScrew2={ok:mk(false,true), no:mk(true,true), cam:cam2, half:3.6}; }   /* step 12: the first bracket stands on the post as well */
 const cam2bEl=document.getElementById('cam2b');
 const BADGE_OK='<svg viewBox="0 0 24 24"><path d="M5 12.5 L10 17.5 L19 7"/></svg>', BADGE_NO='<svg viewBox="0 0 24 24"><path d="M6 6 L18 18 M18 6 L6 18"/></svg>';
 function renderCompare(W,H,{x,y,pw,ph,stack}){ const gap=12; const S=CMPS[cam2.compare]||Object.assign(CMP,{half:1.1});
